@@ -1,169 +1,150 @@
 import React, { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useStore } from '../store';
-import ProBadge from '../components/ProBadge';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Card, GhostButton, Inset, PrimaryButton, SectionTitle } from '../components/ui';
 import type { Nav } from '../navigation';
+import { AVAILABLE_PRODUCTS, purchaseProduct, restorePurchases } from '../services/subscription';
+import { c, radius, spacing, type } from '../theme';
 
-/**
- * Dark premium paywall (near-black + bright green + orange PRO pills), fixed
- * dark style like onboarding so the premium pitch reads the same in Light
- * and Dark mode. Gate contract is unchanged: purchase/restore are honest
- * v1 placeholders that show a not-wired-yet message and never unlock
- * anything, and Close returns via nav.pop(). The old "Backup and sync (v2)"
- * premium bullet was dropped: it is not implemented, so it must not be
- * sold as a Premium feature.
- */
+const DEMO_BANNER =
+  'Development / demo mode — no subscription products are configured, so no prices are shown and no purchase can be made.';
+const LEGAL_NOT_PUBLISHED = 'Terms of Service and Privacy Policy are not published yet for this app.';
 
-const BG = '#0A0A0A';
-const CARD = '#1C1C1E';
-const BORDER = '#2A2A2E';
-const GREEN = '#4ADE80';
-const WHITE = '#FFFFFF';
-const GREY = '#9CA3AF';
-
-const PLANS = [
-  { id: 'monthly', label: 'Monthly', price: '₹149 / month', note: 'Cancel any time' },
-  { id: 'yearly', label: 'Yearly', price: '₹999 / year', note: 'About ₹83 / month · Best Value' },
-  { id: 'lifetime', label: 'Lifetime', price: '₹1,999 once', note: 'Pay once, keep it forever' },
+const FREE_FEATURES = ['Up to 5 habits', '1 routine', 'Basic progress', 'Basic reminders'];
+const PREMIUM_FEATURES = [
+  'Unlimited habits',
+  'Unlimited routines',
+  'Advanced analytics',
+  'Custom reminders',
+  'Personalised weekly suggestions',
+  'Additional customisation',
 ];
 
-const FREE_ROWS = [
-  { label: 'Basic habit tracking', detail: 'Up to 5 habits, 1 routine' },
-  { label: 'Daily reminders', detail: 'Local reminders on your phone' },
-  { label: 'Skips and pauses', detail: 'Planned skips never break a streak' },
-];
-
-const PREMIUM_ROWS = [
-  { label: 'Unlimited habits', detail: 'No 5-habit cap' },
-  { label: 'Unlimited routines', detail: 'No 1-routine cap' },
-  { label: 'Weekly suggestions with Apply', detail: 'One-tap fixes every Sunday' },
-  { label: 'Advanced charts and heatmaps', detail: 'Trends beyond the basic calendar' },
-  { label: 'Task repeats', detail: 'Daily and Weekly repeats on tasks (Never is free)' },
-  { label: 'Import Calendar', detail: 'Bring timed entries into Plan day (coming soon, Premium only)' },
-];
-
-export default function Paywall({ nav }: { nav: Nav }): React.JSX.Element {
-  const { isPremium } = useStore();
-  const [selected, setSelected] = useState('yearly');
-
-  function purchase() {
-    // TODO: RevenueCat — wire this button to RevenueCat purchases before release.
-    // Deliberately does NOT unlock Premium and does NOT charge anything in v1.
-    Alert.alert(
-      'Purchases are not wired yet',
-      'This is a v1 placeholder. TODO: connect RevenueCat here, then unlock Premium only after a verified purchase. Nothing has been charged.',
-      [{ text: 'OK' }],
-    );
-  }
-
-  function restore() {
-    // TODO: RevenueCat — wire Restore to RevenueCat restorePurchases before release.
-    Alert.alert('Restore is not wired yet', 'TODO: connect RevenueCat restorePurchases here. Nothing has been restored in this v1 build.', [{ text: 'OK' }]);
-  }
-
+function FeatureRow({ label, included }: { label: string; included: boolean }) {
   return (
-    <ScrollView contentContainerStyle={styles.wrap} style={styles.screen}>
-      <View style={styles.header}>
-        <Text style={styles.crown}>♛</Text>
-        <Text style={styles.hero}>Unlock Premium</Text>
-        <Text style={styles.heroBody}>Go beyond the basics: more habits, more routines, and smarter weekly guidance, with no extra setup.</Text>
-      </View>
-
-      <Text style={styles.sectionTitle}>Included free</Text>
-      {FREE_ROWS.map((r) => (
-        <View key={r.label} style={styles.row}>
-          <Text style={styles.check}>✓</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.rowTitle}>{r.label}</Text>
-            <Text style={styles.rowDetail}>{r.detail}</Text>
-          </View>
-        </View>
-      ))}
-
-      <Text style={styles.sectionTitle}>Premium unlocks</Text>
-      {PREMIUM_ROWS.map((r) => (
-        <View key={r.label} style={styles.row}>
-          <Text style={isPremium ? styles.check : styles.lock}>{isPremium ? '✓' : '🔒'}</Text>
-          <View style={{ flex: 1 }}>
-            <View style={styles.rowTitleRow}>
-              <Text style={styles.rowTitle}>{r.label}</Text>
-              {!isPremium ? <ProBadge /> : null}
-            </View>
-            <Text style={styles.rowDetail}>{r.detail}</Text>
-          </View>
-        </View>
-      ))}
-
-      {isPremium ? (
-        <View style={styles.noteCard}>
-          <Text style={styles.rowTitle}>Premium preview is on</Text>
-          <Text style={styles.rowDetail}>This is the demo preview switch from Settings, not a real purchase. Turn it off in Settings to test the free gates again.</Text>
-        </View>
-      ) : null}
-
-      <Text style={styles.sectionTitle}>Choose a plan</Text>
-      {PLANS.map((p) => {
-        const on = selected === p.id;
-        const best = p.id === 'yearly';
-        return (
-          <Pressable key={p.id} onPress={() => setSelected(p.id)} style={[styles.planCard, on && styles.planSelected, best && styles.planBest]}>
-            <View style={styles.planHead}>
-              <Text style={styles.planLabel}>{p.label}</Text>
-              {best ? (
-                <View style={styles.bestPill}>
-                  <Text style={styles.bestPillText}>BEST VALUE</Text>
-                </View>
-              ) : null}
-            </View>
-            <Text style={styles.planPrice}>{p.price}</Text>
-            <Text style={styles.rowDetail}>{p.note}</Text>
-            <Text style={[styles.planState, on && styles.planStateOn]}>{on ? '● Selected' : '○ Select'}</Text>
-          </Pressable>
-        );
-      })}
-
-      <Pressable onPress={purchase} style={styles.greenBtn}>
-        <Text style={styles.greenBtnText}>Continue with selected plan</Text>
-      </Pressable>
-      <Pressable onPress={restore} style={styles.ghostBtn}>
-        <Text style={styles.ghostBtnText}>Restore purchase</Text>
-      </Pressable>
-      <Pressable onPress={nav.pop} style={styles.ghostBtn}>
-        <Text style={styles.ghostBtnText}>Close</Text>
-      </Pressable>
-      <Text style={styles.note}>v1 note: purchase and restore are placeholders. Do not ship to the Play Store with real prices until RevenueCat is wired and verified.</Text>
-    </ScrollView>
+    <View style={s.row}>
+      <Text style={[s.mark, included ? s.markYes : s.markNo]}>{included ? '✓' : '—'}</Text>
+      <Text style={s.rowText}>{label}</Text>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { backgroundColor: BG },
-  wrap: { flexGrow: 1, padding: 22, gap: 14, backgroundColor: BG },
-  header: { backgroundColor: CARD, borderRadius: 26, borderWidth: 1, borderColor: BORDER, padding: 20, gap: 8, alignItems: 'center' },
-  crown: { fontSize: 40, color: GREEN },
-  hero: { fontSize: 30, fontWeight: '800', color: WHITE, textAlign: 'center' },
-  heroBody: { fontSize: 15, color: GREY, lineHeight: 22, textAlign: 'center' },
-  sectionTitle: { fontSize: 17, fontWeight: '800', color: WHITE, marginTop: 6 },
-  row: { flexDirection: 'row', gap: 12, backgroundColor: CARD, borderRadius: 16, borderWidth: 1, borderColor: BORDER, padding: 14, alignItems: 'flex-start' },
-  check: { color: GREEN, fontSize: 18, fontWeight: '800' },
-  lock: { fontSize: 16 },
-  rowTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  rowTitle: { fontSize: 15, fontWeight: '700', color: WHITE },
-  rowDetail: { fontSize: 13, color: GREY, lineHeight: 19, marginTop: 2 },
-  noteCard: { backgroundColor: CARD, borderRadius: 16, borderWidth: 1, borderColor: GREEN, padding: 14, gap: 4 },
-  planCard: { backgroundColor: CARD, borderRadius: 20, borderWidth: 1.5, borderColor: BORDER, padding: 16, gap: 4 },
-  planSelected: { borderColor: GREEN, borderWidth: 2 },
-  planBest: { borderWidth: 3, borderColor: GREEN },
-  planHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  planLabel: { fontSize: 17, fontWeight: '800', color: WHITE },
-  bestPill: { backgroundColor: GREEN, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
-  bestPillText: { color: '#0A0A0A', fontSize: 11, fontWeight: '800' },
-  planPrice: { fontSize: 18, fontWeight: '800', color: GREEN },
-  planState: { fontSize: 13, color: GREY, fontWeight: '700', marginTop: 4 },
-  planStateOn: { color: GREEN },
-  greenBtn: { borderRadius: 14, minHeight: 56, backgroundColor: GREEN, alignItems: 'center', justifyContent: 'center' },
-  greenBtnText: { color: '#0A0A0A', fontSize: 16, fontWeight: '800' },
-  ghostBtn: { borderRadius: 14, minHeight: 48, borderWidth: 1, borderColor: BORDER, backgroundColor: CARD, alignItems: 'center', justifyContent: 'center' },
-  ghostBtnText: { color: WHITE, fontSize: 15, fontWeight: '600' },
-  note: { fontSize: 13, color: GREY, lineHeight: 19, textAlign: 'center' },
+export function Paywall({ nav }: { nav: Nav }) {
+  const [message, setMessage] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const handleRestore = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const result = await restorePurchases();
+      setMessage(result.message);
+    } catch {
+      setMessage('Restore could not be completed. No purchase was made and Premium was not unlocked.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handlePurchase = async (productId: string) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const result = await purchaseProduct(productId);
+      setMessage(result.message);
+    } catch {
+      setMessage('Purchase could not be completed. No payment was taken and Premium was not unlocked.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={s.safe}>
+      <ScrollView contentContainerStyle={s.content}>
+        <View style={s.header}>
+          <Text style={s.title}>Premium</Text>
+          <GhostButton label="Close" onPress={() => nav.back()} />
+        </View>
+
+        <Inset>
+          <Text style={s.banner}>{DEMO_BANNER}</Text>
+        </Inset>
+
+        <Card>
+          <SectionTitle>Free vs Premium</SectionTitle>
+          <View style={s.compare}>
+            <View style={s.column}>
+              <Text style={s.columnTitle}>Free</Text>
+              {FREE_FEATURES.map((f) => (
+                <FeatureRow key={f} label={f} included />
+              ))}
+            </View>
+            <View style={s.column}>
+              <Text style={s.columnTitle}>Premium</Text>
+              {PREMIUM_FEATURES.map((f) => (
+                <FeatureRow key={f} label={f} included />
+              ))}
+            </View>
+          </View>
+          <Text style={s.note}>No prices are shown because no subscription products are configured.</Text>
+        </Card>
+
+        <Card>
+          <SectionTitle>Purchase</SectionTitle>
+          {AVAILABLE_PRODUCTS.length === 0 ? (
+            <Text style={s.body}>No products available yet.</Text>
+          ) : (
+            AVAILABLE_PRODUCTS.map((p) => (
+              <PrimaryButton key={p.id} label={p.title} onPress={() => void handlePurchase(p.id)} />
+            ))
+          )}
+          <Text style={s.body}>
+            Purchasing is unavailable in this build. No payment will be taken and Premium will not be unlocked.
+          </Text>
+        </Card>
+
+        {message ? (
+          <Inset>
+            <Text style={s.body}>{message}</Text>
+          </Inset>
+        ) : null}
+
+        <PrimaryButton label={busy ? 'Working…' : 'Restore purchases'} onPress={() => void handleRestore()} />
+
+        <Pressable style={s.legalRow} onPress={() => setMessage(LEGAL_NOT_PUBLISHED)} accessibilityRole="button">
+          <Text style={s.legalText}>Terms of Service</Text>
+        </Pressable>
+        <Pressable style={s.legalRow} onPress={() => setMessage(LEGAL_NOT_PUBLISHED)} accessibilityRole="button">
+          <Text style={s.legalText}>Privacy Policy</Text>
+        </Pressable>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.bg },
+  content: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxl },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  title: { fontSize: type.title, fontWeight: '600', color: c.ink },
+  banner: { fontSize: type.body, color: c.ink, lineHeight: 20 },
+  compare: { flexDirection: 'row', gap: spacing.lg },
+  column: { flex: 1, gap: spacing.sm },
+  columnTitle: { fontSize: type.label, fontWeight: '600', color: c.ink },
+  row: { flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start' },
+  mark: { fontSize: type.body, fontWeight: '600', width: 16 },
+  markYes: { color: c.accent },
+  markNo: { color: c.muted },
+  rowText: { fontSize: type.body, color: c.muted, lineHeight: 20, flex: 1 },
+  note: { fontSize: type.small, color: c.muted, lineHeight: 18 },
+  body: { fontSize: type.body, color: c.muted, lineHeight: 20 },
+  legalRow: {
+    minHeight: 48,
+    justifyContent: 'center',
+    backgroundColor: c.surface,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.lg,
+  },
+  legalText: { fontSize: type.label, fontWeight: '600', color: c.primary },
 });

@@ -1,87 +1,41 @@
-export type TimeSlot = 'morning' | 'afternoon' | 'evening';
 export type HabitType = 'do' | 'avoid' | 'measurable';
-export type Frequency =
-  | { kind: 'daily' }
-  | { kind: 'weekdays'; days: number[] } // 0 = Sunday .. 6 = Saturday
-  | { kind: 'timesPerWeek'; count: number };
-
+export type FrequencyType = 'daily' | 'weekdays' | 'weekly';
+export type TimeSlot = 'morning' | 'afternoon' | 'evening';
+export type CompletionStatus = 'done' | 'skipped' | 'failed';
+export type Goal = 'Fitness' | 'Study' | 'Health' | 'Productivity' | 'Better Mornings';
+export interface Preferences {
+  onboardingComplete: boolean; goal: Goal | null; wakeTime: string;
+  eveningReviewTime: string; theme: 'dark'; notificationsEnabled: boolean;
+}
 export interface Habit {
-  id: string;
-  name: string;
-  color: string;
-  type: HabitType;
-  target: number; // for measurable: amount needed; for do/avoid: 1
-  unit: string; // e.g. "glasses", "pages", "" for do/avoid
-  frequency: Frequency;
-  slot: TimeSlot;
-  reminderTime: string | null; // "07:00"
-  reminderEnabled: boolean;
-  skipDates: string[]; // YYYY-MM-DD planned skips
-  paused: boolean;
-  createdAt: string; // YYYY-MM-DD
+  id: string; name: string; icon: string; color: string; type: HabitType;
+  target: number; unit: string; frequency: FrequencyType; weekdays: number[];
+  weeklyTarget: number; timeSlot: TimeSlot; startDate: string; skipDays: string[];
+  reminderEnabled: boolean; reminderTime: string | null;
+  createdAt: number; updatedAt: number; paused: boolean; archived: boolean;
 }
-
+export interface Completion {
+  id: string; habitId: string; date: string; status: CompletionStatus;
+  value: number | null; createdAt: number; updatedAt: number;
+}
 export interface Routine {
-  id: string;
-  name: string;
-  startTime: string; // "06:30"
-  habitIds: string[];
-  createdAt: string;
+  id: string; name: string; startTime: string; habitIds: string[];
+  createdAt: number; updatedAt: number;
 }
-
-export type TaskPriority = 'none' | 'low' | 'high';
-export type TaskRepeat = 'never' | 'daily' | 'weekly';
-export type TaskList = 'My Tasks' | 'Personal' | 'Work' | 'Shopping';
-
-export const TASK_LISTS: TaskList[] = ['My Tasks', 'Personal', 'Work', 'Shopping'];
-
-export interface Task {
-  id: string;
-  title: string;
-  list: TaskList;
-  priority: TaskPriority;
-  date: string; // YYYY-MM-DD
-  time: string | null; // "07:00" 24h, null = no time
-  reminderTime: string | null; // only meaningful when time is set
-  reminderEnabled: boolean;
-  repeat: TaskRepeat;
-  done: boolean;
-  autoFinished: boolean; // true when done only because all subtasks were done
-  createdAt: string; // YYYY-MM-DD
+export interface Suggestion { id: string; kind: 'move-to-morning' | 'reduce-frequency' | 'pause' | 'lower-target'; habitId: string; reason: string; applied: boolean; dismissed: boolean; }
+export interface WeeklyReport {
+  id: string; weekId: string; totalCompletions: number; bestDay: string; bestStreak: number;
+  lowestHabitId: string | null; suggestions: Suggestion[]; status: 'new' | 'applied' | 'dismissed';
 }
-
-export interface SubTask {
-  id: string;
-  taskId: string;
-  title: string;
-  done: boolean;
+export interface NewHabitInput {
+  name: string; icon: string; color: string; type: HabitType; target: number; unit: string;
+  frequency: FrequencyType; weekdays: number[]; weeklyTarget: number; timeSlot: TimeSlot;
+  startDate: string; skipDays: string[]; reminderEnabled: boolean; reminderTime: string | null;
 }
-
-/** Key: `${habitId}|${date}` -> value logged that day (1 for do/avoid, amount for measurable). */
-export type CheckIns = Record<string, number>;
-
-export interface Settings {
-  goal: string;
-  wakeTime: string;
-  notificationsEnabled: boolean;
-  eveningReviewTime: string; // "21:00"
-  premiumDemo: boolean; // demo-only preview switch in Settings; NOT a purchase
-  themeMode: 'light' | 'dark'; // appearance choice, stored in AsyncStorage, default 'dark'
-}
-
-export interface AppState {
-  onboarded: boolean;
-  habits: Habit[];
-  routines: Routine[];
-  checkIns: CheckIns;
-  tasks: Task[];
-  subtasks: SubTask[];
-  settings: Settings;
-}
-
 export const FREE_HABIT_LIMIT = 5;
 export const FREE_ROUTINE_LIMIT = 1;
-
-export function checkInKey(habitId: string, date: string): string {
-  return `${habitId}|${date}`;
-}
+export const newHabitDefaults = (startDate: string): NewHabitInput => ({
+  name: '', icon: '✓', color: '#2DD4BF', type: 'do', target: 1, unit: '',
+  frequency: 'daily', weekdays: [1, 2, 3, 4, 5], weeklyTarget: 3, timeSlot: 'morning',
+  startDate, skipDays: [], reminderEnabled: false, reminderTime: null,
+});

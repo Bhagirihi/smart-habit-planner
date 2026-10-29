@@ -1,124 +1,188 @@
-import React, { useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useStore } from '../store';
-import { spacing, type, type Palette } from '../theme';
-import { useTheme } from '../useTheme';
-import { Card, Chip, GhostButton, PrimaryButton } from '../components/ui';
-import ProBadge from '../components/ProBadge';
+import React, { useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Card, GhostButton, Inset, SectionTitle } from '../components/ui';
 import type { Nav } from '../navigation';
-import { requestNotificationPermission } from '../lib/notifications';
+import { useStore } from '../store';
+import { syncStatus } from '../services/sync';
+import { c, radius, spacing, type } from '../theme';
 
-const REVIEW_TIMES = ['19:00', '20:00', '21:00', '22:00'];
+const DELETE_WARNING =
+  'This deletes all habits, completions, routines and preferences on this device and cancels scheduled reminders. Cloud data is not connected, so nothing is uploaded to delete.';
+const LEGAL_NOT_PUBLISHED = 'Not published yet.';
+const SUBSCRIPTION_MESSAGE =
+  'No subscription is configured in this build, so there is nothing to manage. This app runs in demo mode and no purchase has been made.';
 
-function makeStyles(c: Palette) {
-  return StyleSheet.create({
-    wrap: { flexGrow: 1, padding: spacing.lg, gap: 14, backgroundColor: c.bg },
-    hero: { fontSize: type.title, fontWeight: '800', color: c.ink },
-    cardTitle: { fontSize: type.subtitle, fontWeight: '700', color: c.ink },
-    body: { fontSize: type.body, color: c.muted, lineHeight: 22, marginVertical: 4 },
-    label: { fontSize: type.body, fontWeight: '700', color: c.ink, marginTop: 10 },
-    chips: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 },
-    danger: { borderColor: c.red },
-  });
+function isValidTime(value: string): boolean {
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
 }
 
-export default function Settings({ nav }: { nav: Nav }): React.JSX.Element {
-  const c = useTheme();
-  const styles = useMemo(() => makeStyles(c), [c]);
-  const { state, updateSettings, resetAll, isPremium } = useStore();
-  const [confirmStep, setConfirmStep] = useState(0);
-
-  async function enableNotifications() {
-    const granted = await requestNotificationPermission();
-    if (granted) {
-      updateSettings({ notificationsEnabled: true });
-      Alert.alert('Reminders on', 'Habit reminders and the evening review are now scheduled on this phone.');
-    } else {
-      Alert.alert('Permission not granted', 'Reminders stay off. You can allow them later from your phone Settings, then toggle this switch again.');
-    }
-  }
-
-  function deleteAll() {
-    if (confirmStep === 0) {
-      setConfirmStep(1);
-      return;
-    }
-    // Second confirmation, then wipe.
-    Alert.alert('Delete everything?', 'This removes all habits, routines, check-ins and settings from this phone.', [
-      { text: 'Cancel', style: 'cancel', onPress: () => setConfirmStep(0) },
-      {
-        text: 'Delete everything',
-        style: 'destructive',
-        onPress: () => {
-          resetAll();
-          setConfirmStep(0);
-        },
-      },
-    ]);
-  }
-
+function Row({ label, detail, onPress }: { label: string; detail?: string; onPress?: () => void }) {
   return (
-    <ScrollView contentContainerStyle={styles.wrap}>
-      <Text style={styles.hero}>Settings</Text>
-
-      <Card>
-        <Text style={styles.cardTitle}>Appearance</Text>
-        <Text style={styles.body}>Light is bright and colourful. Dark is easy on the eyes at night. The choice is saved on this phone.</Text>
-        <View style={styles.chips}>
-          <Chip label="Light" selected={state.settings.themeMode !== 'dark'} onPress={() => updateSettings({ themeMode: 'light' })} />
-          <Chip label="Dark" selected={state.settings.themeMode === 'dark'} onPress={() => updateSettings({ themeMode: 'dark' })} />
-        </View>
-      </Card>
-
-      <Card>
-        <Text style={styles.cardTitle}>Notifications</Text>
-        <Text style={styles.body}>Reminders are local to this phone. Nothing is sent to a server in v1.</Text>
-        <View style={styles.chips}>
-          <Chip label="Reminders on" selected={state.settings.notificationsEnabled} onPress={() => void enableNotifications()} />
-          <Chip label="Reminders off" selected={!state.settings.notificationsEnabled} onPress={() => updateSettings({ notificationsEnabled: false })} />
-        </View>
-        <Text style={styles.label}>Evening review time</Text>
-        <View style={styles.chips}>
-          {REVIEW_TIMES.map((t) => (
-            <Chip key={t} label={t} selected={state.settings.eveningReviewTime === t} onPress={() => updateSettings({ eveningReviewTime: t })} />
-          ))}
-        </View>
-      </Card>
-
-      <Card>
-        <Text style={styles.cardTitle}>Backup and sync</Text>
-        <Text style={styles.body}>v1 stores everything on this phone only (AsyncStorage). Cloud backup and cross-device sync are TODO for v2, and need a backend before they are promised to users.</Text>
-        <Text style={styles.body}>Goal: {state.settings.goal || 'Not set'} · Wake time: {state.settings.wakeTime}</Text>
-        <Text style={styles.body}>Habits: {state.habits.length} · Routines: {state.routines.length}</Text>
-      </Card>
-
-      <Card>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Text style={styles.cardTitle}>Premium</Text>
-          <ProBadge />
-        </View>
-        <Text style={styles.body}>{isPremium ? 'Premium preview is ON (demo switch below).' : 'You are on the Free plan.'}</Text>
-        <GhostButton label="See Premium plans" onPress={() => nav.openPaywall()} />
-        <View style={{ height: 10 }} />
-        <Text style={styles.label}>Demo only: preview Premium gates</Text>
-        <Text style={styles.body}>This switch is for testing the paywall gates. It is NOT a purchase and must not be presented to users as one.</Text>
-        <View style={styles.chips}>
-          <Chip label="Preview on" selected={state.settings.premiumDemo} onPress={() => updateSettings({ premiumDemo: true })} />
-          <Chip label="Preview off" selected={!state.settings.premiumDemo} onPress={() => updateSettings({ premiumDemo: false })} />
-        </View>
-      </Card>
-
-      <Card>
-        <Text style={styles.cardTitle}>About</Text>
-        <Text style={styles.body}>Smart Habit Planner v1.0.0 · Offline-first · No account required · No ads in v1.</Text>
-      </Card>
-
-      <Card style={styles.danger}>
-        <Text style={styles.cardTitle}>Delete all my data</Text>
-        <Text style={styles.body}>{confirmStep === 0 ? 'This removes everything from this phone.' : 'Are you sure? Tap again and you will get one final confirmation.'}</Text>
-        <PrimaryButton label={confirmStep === 0 ? 'Delete all my data' : 'Tap again to confirm'} onPress={deleteAll} />
-        {confirmStep === 1 ? <GhostButton label="Cancel, keep my data" onPress={() => setConfirmStep(0)} /> : null}
-      </Card>
-    </ScrollView>
+    <Pressable style={s.row} onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? 'button' : undefined}>
+      <View style={s.rowTextWrap}>
+        <Text style={s.rowLabel}>{label}</Text>
+        {detail ? <Text style={s.rowDetail}>{detail}</Text> : null}
+      </View>
+      {onPress ? <Text style={s.chevron}>›</Text> : null}
+    </Pressable>
   );
 }
+
+export function Settings({ nav }: { nav: Nav }) {
+  const { prefs, setPrefs, deleteAllData } = useStore();
+  const [message, setMessage] = useState<string | null>(null);
+  const [reviewTime, setReviewTime] = useState(prefs.eveningReviewTime);
+  const [timeError, setTimeError] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const saveReviewTime = () => {
+    if (!isValidTime(reviewTime)) {
+      setTimeError('Enter a valid time in HH:MM format (00:00 to 23:59).');
+      return;
+    }
+    setTimeError(null);
+    setPrefs({ eveningReviewTime: reviewTime });
+    setMessage('Evening review time saved.');
+  };
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await deleteAllData();
+      setConfirmingDelete(false);
+      setMessage('All local data has been deleted.');
+    } catch {
+      setMessage('Data could not be deleted. Please try again.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={s.safe}>
+      <ScrollView contentContainerStyle={s.content}>
+        <Text style={s.title}>Settings</Text>
+
+        <SectionTitle>Profile</SectionTitle>
+        <Card>
+          <Text style={s.body}>Local profile — no account signed in</Text>
+          <Text style={s.body}>
+            There is no account in this build, so no name or email is stored. Your habits live only on this device.
+          </Text>
+        </Card>
+
+        <SectionTitle>Backup and sync</SectionTitle>
+        <Card>
+          <Text style={s.body}>{syncStatus()}</Text>
+          <Text style={s.body}>Continue offline — the app works fully without a connection.</Text>
+        </Card>
+
+        <SectionTitle>Notifications</SectionTitle>
+        <Card>
+          <View style={s.toggleRow}>
+            <View style={s.rowTextWrap}>
+              <Text style={s.rowLabel}>Notifications</Text>
+              <Text style={s.rowDetail}>Habit reminders and the evening review</Text>
+            </View>
+            <Switch
+              value={prefs.notificationsEnabled}
+              onValueChange={(value) => setPrefs({ notificationsEnabled: value })}
+            />
+          </View>
+          <Text style={s.label}>Evening review time (HH:MM)</Text>
+          <TextInput
+            style={s.input}
+            value={reviewTime}
+            onChangeText={(value) => {
+              setReviewTime(value);
+              setTimeError(null);
+            }}
+            onBlur={saveReviewTime}
+            onSubmitEditing={saveReviewTime}
+            placeholder="21:00"
+            placeholderTextColor={c.muted}
+            keyboardType="numbers-and-punctuation"
+            maxLength={5}
+          />
+          {timeError ? <Text style={s.errorText}>{timeError}</Text> : null}
+          <Text style={s.body}>Saved time: {prefs.eveningReviewTime}</Text>
+        </Card>
+
+        <SectionTitle>Appearance</SectionTitle>
+        <Card>
+          <Row label="Theme" detail="Dark (Deep Teal Console)" />
+          <Text style={s.body}>The theme is dark-only in this build.</Text>
+        </Card>
+
+        <SectionTitle>Help and support</SectionTitle>
+        <Card>
+          <Text style={s.body}>Help is not connected yet — contact the developer through the store listing.</Text>
+        </Card>
+
+        <SectionTitle>Premium</SectionTitle>
+        <Card>
+          <Row label="Upgrade to Premium" onPress={() => nav.openPaywall(nav.route)} />
+          <Row label="Manage subscription" onPress={() => setMessage(SUBSCRIPTION_MESSAGE)} />
+        </Card>
+
+        <SectionTitle>Legal</SectionTitle>
+        <Card>
+          <Row label="Privacy Policy" onPress={() => setMessage(`Privacy Policy: ${LEGAL_NOT_PUBLISHED}`)} />
+          <Row label="Terms of Service" onPress={() => setMessage(`Terms of Service: ${LEGAL_NOT_PUBLISHED}`)} />
+        </Card>
+
+        <SectionTitle>Data</SectionTitle>
+        <Card>
+          {!confirmingDelete ? (
+            <Row label="Delete my data" onPress={() => setConfirmingDelete(true)} />
+          ) : (
+            <View style={s.deleteBox}>
+              <Text style={s.body}>{DELETE_WARNING}</Text>
+              <Text style={s.body}>Are you sure you want to delete all local data?</Text>
+              <GhostButton label={deleting ? 'Deleting…' : 'Delete all data'} onPress={() => void handleDelete()} danger />
+              <GhostButton label="Keep my data" onPress={() => setConfirmingDelete(false)} />
+            </View>
+          )}
+        </Card>
+
+        {message ? (
+          <Inset>
+            <Text style={s.body}>{message}</Text>
+          </Inset>
+        ) : null}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.bg },
+  content: { padding: spacing.lg, gap: spacing.sm, paddingBottom: spacing.xxl },
+  title: { fontSize: type.title, fontWeight: '600', color: c.ink },
+  body: { fontSize: type.body, color: c.muted, lineHeight: 20 },
+  row: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  rowTextWrap: { flex: 1, gap: 2 },
+  rowLabel: { fontSize: type.label, fontWeight: '600', color: c.ink },
+  rowDetail: { fontSize: type.small, color: c.muted, lineHeight: 18 },
+  chevron: { fontSize: 20, color: c.muted },
+  toggleRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
+  label: { fontSize: type.label, fontWeight: '600', color: c.ink },
+  input: {
+    minHeight: 48,
+    backgroundColor: c.surfaceAlt,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.lg,
+    fontSize: type.label,
+    color: c.ink,
+  },
+  errorText: { fontSize: type.body, color: c.error, lineHeight: 20 },
+  deleteBox: { gap: spacing.sm },
+});

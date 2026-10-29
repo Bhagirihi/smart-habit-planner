@@ -1,112 +1,200 @@
-import React, { useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useStore } from '../store';
-import { spacing, type, type Palette } from '../theme';
-import { useTheme } from '../useTheme';
-import { Card, EmptyState, GhostButton, SectionTitle } from '../components/ui';
-import { Heatmap, WeekBars } from '../components/Charts';
+import React from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Card, EmptyState, ErrorBanner, ProgressBar, ProgressRing, SecondaryButton, SectionTitle } from '../components/ui';
+import { addDays, todayKey, weekStartKey } from '../lib/dates';
 import type { Nav } from '../navigation';
-import { todayKey } from '../lib/dates';
-import { completionRate, computeBestStreak, computeStreak } from '../lib/streaks';
+import {
+  completionFor,
+  completionRate,
+  computeBestStreak,
+  computeStreak,
+  isDone,
+  isScheduledOn,
+} from '../services/streaks';
+import { useStore } from '../store';
+import { c, radius, spacing, type } from '../theme';
 
-function makeStyles(c: Palette) {
-  return StyleSheet.create({
-    wrap: { flexGrow: 1, padding: spacing.lg, gap: 14, backgroundColor: c.bg },
-    hero: { fontSize: type.title, fontWeight: '800', color: c.ink },
-    cardTitle: { fontSize: type.subtitle, fontWeight: '700', color: c.ink },
-    cardBody: { fontSize: type.body, color: c.muted, lineHeight: 22, marginVertical: 6 },
-    legend: { fontSize: type.small, color: c.muted, marginTop: 10 },
-    medalsRow: { flexDirection: 'row', gap: 10 },
-    medal: { flex: 1, alignItems: 'center', gap: 4, paddingVertical: 10 },
-    medalCircle: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
-    medalMark: { fontSize: 20, fontWeight: '800', color: '#fff' },
-    medalLabel: { fontSize: type.caption, fontWeight: '700', color: c.ink, textAlign: 'center' },
-    medalSub: { fontSize: type.caption, color: c.muted, textAlign: 'center' },
-  });
+function shortDay(key: string): string {
+  return new Date(`${key}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'short' });
 }
 
-const MEDALS = [
-  { id: 'first', label: 'First Step', sub: '1-day best', needed: 1 },
-  { id: 'week', label: '7-Day', sub: '7-day best', needed: 7 },
-  { id: 'month', label: '30-Day', sub: '30-day best', needed: 30 },
-  { id: 'century', label: '100-Day', sub: '100-day best', needed: 100 },
-];
-
-export default function Progress({ nav }: { nav: Nav }): React.JSX.Element {
-  const c = useTheme();
-  const styles = useMemo(() => makeStyles(c), [c]);
-  const { state, isPremium } = useStore();
+export default function Progress({ nav }: { nav: Nav }) {
+  const { ready, loadError, habits, completions } = useStore();
   const today = todayKey();
 
-  if (state.habits.length === 0) {
-    return (
-      <ScrollView contentContainerStyle={styles.wrap}>
-        <Text style={styles.hero}>Progress</Text>
-        <EmptyState title="No progress yet" detail="Add a habit and tick it off for a few days. Your week bars and calendar grid will fill in here." actionLabel="Add a habit" onAction={() => nav.push({ name: 'habitForm' })} />
-      </ScrollView>
-    );
+  // Last 7 days, oldest first.
+  const last7 = Array.from({ length: 7 }, (_, i) => addDays(today, -(6 - i)));
+  const perDay = last7.map((d) => ({
+    date: d,
+    count: habits.filter((h) => isScheduledOn(h, d) && isDone(h, completionFor(h.id, d, completions))).length,
+  }));
+  const maxDay = Math.max(1, ...perDay.map((d) => d.count));
+
+  // 3-month heatmap: 84 days ending today, grouped into 12 Monday-start weeks.
+  // Days before the first Monday are shown as blank cells so columns stay aligned.
+  const heatStart = weekStartKey(addDays(today, -83));
+  const heatDays: Array<{ date: string; count: number }> = Array.from({ length: 84 }, (_, i) => {
+    const d = addDays(heatStart, i);
+    return {
+      date: d,
+      count:
+        d > today
+          ? 0
+          : habits.filter((h) => isScheduledOn(h, d) && isDone(h, completionFor(h.id, d, completions))).length,
+    };
+  });
+  const heatWeeks: Array<typeof heatDays> = [];
+  for (let w = 0; w < 12; w++) heatWeeks.push(heatDays.slice(w * 7, w * 7 + 7));
+
+  function dotColor(count: number, date: string): string {
+    if (date > today) return c.surfaceAlt;
+    if (count === 0) return c.surfaceAlt;
+    if (count <= 2) return c.primary;
+    return c.accent;
   }
 
-  const ranked = [...state.habits]
-    .map((h) => ({ habit: h, rate: completionRate(h, state.checkIns, today, 30) ?? 0, streak: computeStreak(h, state.checkIns, today), best: computeBestStreak(h, state.checkIns, today) }))
-    .sort((a, b) => a.rate - b.rate);
-  const maxBest = Math.max(0, ...ranked.map((r) => r.best));
+  const totalCompletions = completions.filter((comp) => {
+    if (comp.status !== 'done') return false;
+    const h = habits.find((x) => x.id === comp.habitId);
+    return h !== undefined && isDone(h, comp);
+  }).length;
+
+  let scheduled30 = 0;
+  let done30 = 0;
+  for (const h of habits) {
+    for (let i = 29; i >= 0; i--) {
+      const d = addDays(today, -i);
+      if (!isScheduledOn(h, d)) continue;
+      scheduled30++;
+      if (isDone(h, completionFor(h.id, d, completions))) done30++;
+    }
+  }
+  const rate30 = scheduled30 > 0 ? Math.round((done30 / scheduled30) * 100) : null;
+  const bestStreak = habits.reduce((best, h) => Math.max(best, computeBestStreak(h, completions, today)), 0);
+
+  const ranked = [...habits]
+    .map((h) => ({
+      habit: h,
+      rate: completionRate(h, completions, today, 30),
+      streak: computeStreak(h, completions, today),
+    }))
+    .sort((a, b) => {
+      if (a.rate === null && b.rate === null) return 0;
+      if (a.rate === null) return 1;
+      if (b.rate === null) return -1;
+      return a.rate - b.rate;
+    });
 
   return (
-    <ScrollView contentContainerStyle={styles.wrap}>
-      <Text style={styles.hero}>Progress</Text>
-
-      <SectionTitle>Achievements</SectionTitle>
-      <Card>
-        <View style={styles.medalsRow}>
-          {MEDALS.map((m) => {
-            const earned = maxBest >= m.needed;
-            return (
-              <View key={m.id} style={styles.medal}>
-                <View style={[styles.medalCircle, { backgroundColor: earned ? c.amber : c.surface2 }]}>
-                  <Text style={[styles.medalMark, { color: earned ? '#fff' : c.muted }]}>{earned ? '✓' : '·'}</Text>
+    <SafeAreaView style={s.safe}>
+      <ScrollView contentContainerStyle={s.content}>
+        <Text style={s.title}>Progress</Text>
+        <ErrorBanner message={loadError} />
+        {!ready ? (
+          <Card>
+            <Text style={s.body}>Loading progress…</Text>
+          </Card>
+        ) : habits.length === 0 ? (
+          <EmptyState
+            title="No progress yet"
+            detail="Create your first habit and complete it to see your progress here."
+            actionLabel="Create habit"
+            onAction={() => nav.push({ name: 'habitForm' })}
+          />
+        ) : (
+          <>
+            <Card>
+              <View style={s.ringRow}>
+                <ProgressRing pct={rate30 ?? 0} label="30-day rate" />
+                <View style={s.totals}>
+                  <Text style={s.numeral}>{totalCompletions}</Text>
+                  <Text style={s.meta}>Total completions</Text>
+                  <Text style={s.numeral}>{bestStreak}</Text>
+                  <Text style={s.meta}>Best streak (days)</Text>
+                  <Text style={s.meta}>
+                    {rate30 === null
+                      ? 'No scheduled days in the last 30 days'
+                      : `${done30} of ${scheduled30} scheduled days done in the last 30 days`}
+                  </Text>
                 </View>
-                <Text style={styles.medalLabel}>{m.label}</Text>
-                <Text style={styles.medalSub}>{earned ? 'Earned' : m.sub}</Text>
               </View>
-            );
-          })}
-        </View>
-      </Card>
+            </Card>
 
-      <Card>
-        <Text style={styles.cardTitle}>Weekly report</Text>
-        <Text style={styles.cardBody}>Your Sunday summary and 1 to 3 small changes for next week.</Text>
-        <GhostButton label="View weekly report" onPress={() => nav.push({ name: 'weeklyReport' })} />
-      </Card>
+            <SectionTitle>Last 7 days</SectionTitle>
+            <Card>
+              {perDay.map((d) => (
+                <View key={d.date} style={s.barRow}>
+                  <Text style={s.dayLabel}>{shortDay(d.date)}</Text>
+                  <View style={s.barWrap}>
+                    <ProgressBar pct={(d.count / maxDay) * 100} />
+                  </View>
+                  <Text style={s.countLabel}>{d.count}</Text>
+                </View>
+              ))}
+            </Card>
 
-      <SectionTitle>This week</SectionTitle>
-      <Card>
-        <WeekBars habits={state.habits} checkIns={state.checkIns} today={today} />
-      </Card>
+            <SectionTitle>Last 12 weeks</SectionTitle>
+            <Card>
+              <View style={s.heatRow}>
+                {heatWeeks.map((week, wi) => (
+                  <View key={week[0]?.date ?? `week-${wi}`} style={s.heatCol}>
+                    {week.map((day) => (
+                      <View
+                        key={day.date}
+                        style={[s.dot, { backgroundColor: dotColor(day.count, day.date) }]}
+                      />
+                    ))}
+                  </View>
+                ))}
+              </View>
+              <Text style={s.meta}>Each dot is one day. Filled dots are days with completions.</Text>
+            </Card>
 
-      <SectionTitle>Last 12 weeks</SectionTitle>
-      <Card>
-        <Heatmap habits={state.habits} checkIns={state.checkIns} today={today} />
-        <Text style={styles.legend}>Darker teal means more habits done that day.</Text>
-      </Card>
+            <SectionTitle>Habits, lowest first</SectionTitle>
+            {ranked.map(({ habit, rate, streak }) => (
+              <Pressable
+                key={habit.id}
+                onPress={() => nav.push({ name: 'habitDetail', habitId: habit.id })}
+                accessibilityRole="button"
+              >
+                <Card>
+                  <View style={s.habitRow}>
+                    <Text style={s.rowName}>
+                      {habit.icon} {habit.name}
+                    </Text>
+                    <Text style={s.meta}>{rate === null ? 'No data' : `${rate}%`}</Text>
+                  </View>
+                  <Text style={s.meta}>Current streak: {streak} days</Text>
+                  {rate !== null ? <ProgressBar pct={rate} color={habit.color} /> : null}
+                </Card>
+              </Pressable>
+            ))}
 
-      <SectionTitle>All habits, weakest first</SectionTitle>
-      {ranked.map(({ habit, rate, streak, best }) => (
-        <Card key={habit.id}>
-          <Text style={styles.cardTitle} onPress={() => nav.push({ name: 'habitDetail', habitId: habit.id })}>{habit.name}</Text>
-          <Text style={styles.cardBody}>30-day completion: {rate}% · Current streak: {streak} · Best: {best}</Text>
-          <GhostButton label="View habit" onPress={() => nav.push({ name: 'habitDetail', habitId: habit.id })} />
-        </Card>
-      ))}
-
-      {!isPremium ? (
-        <Card>
-          <Text style={styles.cardTitle}>Advanced charts are Premium</Text>
-          <Text style={styles.cardBody}>The week bars and heatmap above are free. Per-habit trends, month comparisons and weekly suggestions unlock with Premium.</Text>
-          <GhostButton label="See Premium" onPress={() => nav.openPaywall()} />
-        </Card>
-      ) : null}
-    </ScrollView>
+            <SecondaryButton label="View weekly report" onPress={() => nav.push({ name: 'weeklyReport' })} />
+          </>
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
+
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.bg },
+  content: { padding: spacing.lg, gap: spacing.lg },
+  title: { fontSize: type.title, fontWeight: '600', color: c.ink },
+  body: { fontSize: type.body, color: c.muted, lineHeight: 20 },
+  meta: { fontSize: type.body, color: c.muted, lineHeight: 20 },
+  numeral: { fontSize: type.numeral, fontWeight: '600', color: c.ink },
+  ringRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
+  totals: { flex: 1, gap: 2 },
+  barRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  dayLabel: { width: 36, fontSize: type.body, color: c.muted },
+  barWrap: { flex: 1 },
+  countLabel: { width: 24, textAlign: 'right', fontSize: type.body, color: c.ink },
+  heatRow: { flexDirection: 'row', gap: 4 },
+  heatCol: { flex: 1, gap: 4 },
+  dot: { height: 12, borderRadius: radius.sm, backgroundColor: c.surfaceAlt },
+  habitRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
+  rowName: { fontSize: type.label, fontWeight: '600', color: c.ink, flex: 1 },
+});

@@ -1,214 +1,331 @@
-import React, { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Chip, ErrorBanner, PrimaryButton, SecondaryButton } from '../components/ui';
 import { useStore } from '../store';
-import { HABIT_COLORS, spacing, type, type Palette } from '../theme';
-import { useTheme } from '../useTheme';
-import { Card, Chip, GhostButton, PrimaryButton } from '../components/ui';
-import ProBadge from '../components/ProBadge';
-import type { Frequency, Habit, HabitType, TimeSlot } from '../types';
-import { FREE_HABIT_LIMIT } from '../types';
 import type { Nav } from '../navigation';
-import { newId } from '../lib/seed';
-import { todayKey } from '../lib/dates';
+import { isValidDateKey, todayKey } from '../lib/dates';
+import { HABIT_COLORS, HABIT_ICONS, c, radius, spacing, type } from '../theme';
+import { FREE_HABIT_LIMIT, newHabitDefaults } from '../types';
+import type { FrequencyType, HabitType, NewHabitInput, TimeSlot } from '../types';
 
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const TIMES = ['06:00', '07:00', '08:00', '09:00', '12:00', '16:00', '18:00', '19:00', '20:00', '21:00'];
-
-/** Popular preset library: tapping one fills the form (new habits only). */
-const PRESETS: { name: string; color: string; type: HabitType; target: number; unit: string; slot: TimeSlot; reminderTime: string }[] = [
-  { name: 'Drink Water', color: HABIT_COLORS[7], type: 'measurable', target: 8, unit: 'glasses', slot: 'morning', reminderTime: '09:00' },
-  { name: 'Morning Walk', color: HABIT_COLORS[5], type: 'do', target: 1, unit: '', slot: 'morning', reminderTime: '07:00' },
-  { name: 'Read', color: HABIT_COLORS[1], type: 'measurable', target: 10, unit: 'pages', slot: 'evening', reminderTime: '20:00' },
-  { name: 'Meditate', color: HABIT_COLORS[2], type: 'do', target: 1, unit: '', slot: 'morning', reminderTime: '07:00' },
-  { name: 'Workout', color: HABIT_COLORS[4], type: 'do', target: 1, unit: '', slot: 'morning', reminderTime: '07:30' },
-  { name: 'Journal', color: HABIT_COLORS[3], type: 'do', target: 1, unit: '', slot: 'evening', reminderTime: '21:00' },
-  { name: 'No Sugar', color: HABIT_COLORS[6], type: 'avoid', target: 1, unit: '', slot: 'morning', reminderTime: '08:00' },
-  { name: 'Sleep Early', color: HABIT_COLORS[0], type: 'do', target: 1, unit: '', slot: 'evening', reminderTime: '22:00' },
+const WEEKDAY_CHIPS: { label: string; value: number }[] = [
+  { label: 'Mon', value: 1 }, { label: 'Tue', value: 2 }, { label: 'Wed', value: 3 },
+  { label: 'Thu', value: 4 }, { label: 'Fri', value: 5 }, { label: 'Sat', value: 6 },
+  { label: 'Sun', value: 0 },
 ];
 
-function makeStyles(c: Palette) {
-  return StyleSheet.create({
-    wrap: { flexGrow: 1, padding: spacing.lg, gap: 10, backgroundColor: c.bg },
-    hero: { fontSize: type.title, fontWeight: '800', color: c.ink },
-    label: { fontSize: type.body, fontWeight: '700', color: c.ink, marginTop: 8 },
-    input: { borderWidth: 1, borderColor: c.border, borderRadius: 12, minHeight: 52, paddingHorizontal: 12, fontSize: type.body, backgroundColor: c.surface, color: c.ink },
-    chips: { flexDirection: 'row', flexWrap: 'wrap' },
-    colorRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-    colorDot: { width: 44, height: 44, borderRadius: 22, color: '#fff', textAlign: 'center', lineHeight: 44, fontWeight: '800', overflow: 'hidden' },
-    colorSelected: { borderWidth: 3, borderColor: c.ink },
-    row: { flexDirection: 'row', gap: 10 },
-    help: { fontSize: type.body, color: c.muted, lineHeight: 22 },
-    error: { fontSize: type.body, color: c.red, fontWeight: '700' },
-  });
+export function isValidTime(value: string): boolean {
+  const m = /^(\d{2}):(\d{2})$/.exec(value);
+  if (!m || m[1] === undefined || m[2] === undefined) return false;
+  const hh = Number(m[1]);
+  const mm = Number(m[2]);
+  return hh >= 0 && hh <= 23 && mm >= 0 && mm <= 59;
 }
 
-export default function HabitForm({ nav, habitId }: { nav: Nav; habitId?: string }): React.JSX.Element {
-  const c = useTheme();
-  const styles = useMemo(() => makeStyles(c), [c]);
-  const { state, addHabit, updateHabit, isPremium } = useStore();
-  const existing = habitId ? state.habits.find((h) => h.id === habitId) : undefined;
+export function isStrictDateKey(value: string): boolean {
+  if (!isValidDateKey(value)) return false;
+  const parts = value.split('-');
+  const y = Number(parts[0]);
+  const mo = Number(parts[1]);
+  const d = Number(parts[2]);
+  const parsed = new Date(`${value}T12:00:00`);
+  return parsed.getFullYear() === y && parsed.getMonth() + 1 === mo && parsed.getDate() === d;
+}
 
-  const [name, setName] = useState(existing?.name ?? '');
-  const [color, setColor] = useState(existing?.color ?? HABIT_COLORS[0]);
-  const [habitType, setHabitType] = useState<HabitType>(existing?.type ?? 'do');
-  const [target, setTarget] = useState(String(existing?.target ?? 1));
-  const [unit, setUnit] = useState(existing?.unit ?? '');
-  const [freqKind, setFreqKind] = useState<'daily' | 'weekdays' | 'timesPerWeek'>(existing?.frequency.kind ?? 'daily');
-  const [days, setDays] = useState<number[]>(existing?.frequency.kind === 'weekdays' ? existing.frequency.days : [1, 2, 3, 4, 5]);
-  const [perWeek, setPerWeek] = useState(existing?.frequency.kind === 'timesPerWeek' ? existing.frequency.count : 3);
-  const [slot, setSlot] = useState<TimeSlot>(existing?.slot ?? 'morning');
-  const [reminderTime, setReminderTime] = useState(existing?.reminderTime ?? '08:00');
-  const [reminderOn, setReminderOn] = useState(existing?.reminderEnabled ?? true);
-  const [error, setError] = useState('');
+function parseSkipDays(raw: string): { days: string[]; bad: string[] } {
+  const entries = raw.split(',').map((e) => e.trim()).filter((e) => e.length > 0);
+  const days: string[] = [];
+  const bad: string[] = [];
+  for (const e of entries) {
+    if (isStrictDateKey(e)) days.push(e);
+    else bad.push(e);
+  }
+  return { days, bad };
+}
 
-  function save() {
-    const cleanName = name.trim();
-    if (!cleanName) {
-      setError('Please enter a habit name.');
+export default function HabitForm({ nav }: { nav: Nav }) {
+  const { habits, isPremium, addHabit, updateHabit } = useStore();
+  const editingId = nav.route.name === 'habitForm' ? nav.route.habitId : undefined;
+  const existing = editingId ? habits.find((h) => h.id === editingId) : undefined;
+  const isNew = !editingId;
+  const today = todayKey();
+
+  const initial: NewHabitInput = existing
+    ? {
+        name: existing.name, icon: existing.icon, color: existing.color, type: existing.type,
+        target: existing.target, unit: existing.unit, frequency: existing.frequency,
+        weekdays: existing.weekdays, weeklyTarget: existing.weeklyTarget, timeSlot: existing.timeSlot,
+        startDate: existing.startDate, skipDays: existing.skipDays,
+        reminderEnabled: existing.reminderEnabled, reminderTime: existing.reminderTime,
+      }
+    : newHabitDefaults(today);
+
+  const [name, setName] = useState(initial.name);
+  const [icon, setIcon] = useState(initial.icon);
+  const [color, setColor] = useState(initial.color);
+  const [habitType, setHabitType] = useState<HabitType>(initial.type);
+  const [targetText, setTargetText] = useState(String(initial.target));
+  const [unit, setUnit] = useState(initial.unit);
+  const [frequency, setFrequency] = useState<FrequencyType>(initial.frequency);
+  const [weekdays, setWeekdays] = useState<number[]>(initial.weekdays);
+  const [weeklyTarget, setWeeklyTarget] = useState(initial.weeklyTarget);
+  const [timeSlot, setTimeSlot] = useState<TimeSlot>(initial.timeSlot);
+  const [reminderEnabled, setReminderEnabled] = useState(initial.reminderEnabled);
+  const [reminderTime, setReminderTime] = useState(initial.reminderTime ?? '09:00');
+  const [startDate, setStartDate] = useState(initial.startDate);
+  const [skipDaysRaw, setSkipDaysRaw] = useState(initial.skipDays.join(', '));
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const toggleWeekday = (value: number) => {
+    setWeekdays((prev) => (prev.includes(value) ? prev.filter((d) => d !== value) : [...prev, value]));
+  };
+
+  const handleSave = () => {
+    setError(null);
+    setSuccess(null);
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      setError('Enter a habit name.');
       return;
     }
-    // Free gate: 6th habit (new habit only, edits are exempt).
-    if (!existing && !isPremium && state.habits.length >= FREE_HABIT_LIMIT) {
-      nav.openPaywall();
+    if (!isStrictDateKey(startDate)) {
+      setError('Enter a valid start date in YYYY-MM-DD format, for example 2026-10-29.');
       return;
     }
-    let frequency: Frequency = { kind: 'daily' };
-    if (freqKind === 'weekdays') frequency = { kind: 'weekdays', days: days.length > 0 ? days : [1] };
-    if (freqKind === 'timesPerWeek') frequency = { kind: 'timesPerWeek', count: Math.max(1, Math.min(7, perWeek)) };
-    const parsedTarget = habitType === 'measurable' ? Math.max(1, Number(target) || 1) : 1;
-    const habit: Habit = {
-      id: existing?.id ?? newId('habit'),
-      name: cleanName,
-      color,
-      type: habitType,
-      target: parsedTarget,
-      unit: habitType === 'measurable' ? unit.trim() : '',
-      frequency,
-      slot,
-      reminderTime: reminderOn ? reminderTime : null,
-      reminderEnabled: reminderOn,
-      skipDates: existing?.skipDates ?? [],
-      paused: existing?.paused ?? false,
-      createdAt: existing?.createdAt ?? todayKey(),
+    if (frequency === 'weekdays' && weekdays.length === 0) {
+      setError('Choose at least one weekday for specific weekdays.');
+      return;
+    }
+    if (frequency === 'weekly' && (weeklyTarget < 1 || weeklyTarget > 7)) {
+      setError('Weekly target must be between 1 and 7.');
+      return;
+    }
+    const { days: skipDays, bad } = parseSkipDays(skipDaysRaw);
+    if (bad.length > 0) {
+      setError(`These skip days are not valid dates and were not saved: ${bad.join(', ')}. Use YYYY-MM-DD format, separated by commas.`);
+      return;
+    }
+    let target = 1;
+    if (habitType === 'measurable') {
+      const parsed = Number(targetText);
+      if (!Number.isFinite(parsed) || parsed < 1) {
+        setError('Enter a target of 1 or more for a measurable habit.');
+        return;
+      }
+      target = Math.floor(parsed);
+    }
+    if (reminderEnabled && !isValidTime(reminderTime)) {
+      setError('Enter a valid reminder time in HH:MM format, between 00:00 and 23:59.');
+      return;
+    }
+
+    const input: NewHabitInput = {
+      name: trimmedName, icon, color, type: habitType, target, unit: unit.trim(),
+      frequency, weekdays, weeklyTarget, timeSlot, startDate, skipDays,
+      reminderEnabled, reminderTime: reminderEnabled ? reminderTime : null,
     };
-    if (existing) updateHabit(habit);
-    else addHabit(habit);
-    nav.pop();
-  }
 
-  function applyPreset(p: (typeof PRESETS)[number]) {
-    setName(p.name);
-    setColor(p.color);
-    setHabitType(p.type);
-    setTarget(String(p.target));
-    setUnit(p.unit);
-    setSlot(p.slot);
-    setReminderTime(p.reminderTime);
-    setReminderOn(true);
-  }
+    if (isNew) {
+      const activeCount = habits.filter((h) => !h.archived).length;
+      if (!isPremium && activeCount >= FREE_HABIT_LIMIT) {
+        setError('Free allows up to 5 active habits. Upgrade to Premium to add more. Your form has been kept as-is.');
+        nav.openPaywall(nav.route);
+        return;
+      }
+      setSaving(true);
+      const result = addHabit(input);
+      setSaving(false);
+      if (!result.ok) {
+        setError(result.message ?? 'This habit could not be saved. Your form has been kept as-is.');
+        return;
+      }
+      setSuccess('Habit saved.');
+      setTimeout(() => nav.goTab('today'), 900);
+      return;
+    }
+
+    if (!existing) {
+      setError('This habit no longer exists, so it could not be updated.');
+      return;
+    }
+    updateHabit({ ...existing, ...input });
+    setSuccess('Habit saved.');
+    setTimeout(() => nav.back(), 900);
+  };
 
   return (
-    <ScrollView contentContainerStyle={styles.wrap}>
-      <Text style={styles.hero}>{existing ? 'Edit habit' : 'New habit'}</Text>
-      {!existing && !isPremium && state.habits.length >= FREE_HABIT_LIMIT ? (
-        <Card>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <ProBadge />
-            <Text style={styles.help}>You are at the free limit of {FREE_HABIT_LIMIT} habits. Unlimited habits are a Premium feature — saving a 6th habit opens the paywall.</Text>
+    <SafeAreaView style={s.root}>
+      <ScrollView contentContainerStyle={s.content}>
+        <Text style={s.title}>{isNew ? 'Add habit' : 'Edit habit'}</Text>
+        {!isNew && !existing ? (
+          <ErrorBanner message="This habit no longer exists." />
+        ) : null}
+        <ErrorBanner message={error} />
+        {success ? (
+          <View style={s.success}>
+            <Text style={s.successText}>{success}</Text>
           </View>
-        </Card>
-      ) : null}
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      {!existing ? (
-        <>
-          <Text style={styles.label}>Popular presets — tap one to fill the form</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={styles.chips}>
-              {PRESETS.map((p) => (
-                <Chip key={p.name} label={p.name} selected={name === p.name} onPress={() => applyPreset(p)} />
-              ))}
+        ) : null}
+
+        <Text style={s.label}>Name</Text>
+        <TextInput
+          style={s.input} value={name} onChangeText={setName}
+          placeholder="For example, Drink water" placeholderTextColor={c.muted}
+          accessibilityLabel="Habit name"
+        />
+
+        <Text style={s.label}>Icon</Text>
+        <View style={s.wrap}>
+          {HABIT_ICONS.map((ic) => (
+            <Pressable key={ic} style={[s.iconBtn, icon === ic && s.iconBtnActive]} onPress={() => setIcon(ic)} accessibilityRole="button">
+              <Text style={s.iconText}>{ic}</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <Text style={s.label}>Colour</Text>
+        <View style={s.wrap}>
+          {HABIT_COLORS.map((col) => (
+            <Pressable
+              key={col.id}
+              style={[s.colorBtn, { backgroundColor: col.value }, color === col.value && s.colorBtnActive]}
+              onPress={() => setColor(col.value)}
+              accessibilityRole="button"
+              accessibilityLabel={`${col.id} colour`}
+            />
+          ))}
+        </View>
+
+        <Text style={s.label}>Type</Text>
+        <View style={s.wrap}>
+          <Chip label="Do it" active={habitType === 'do'} onPress={() => setHabitType('do')} />
+          <Chip label="Avoid it" active={habitType === 'avoid'} onPress={() => setHabitType('avoid')} />
+          <Chip label="Measurable" active={habitType === 'measurable'} onPress={() => setHabitType('measurable')} />
+        </View>
+
+        {habitType === 'measurable' ? (
+          <View style={s.fieldGroup}>
+            <Text style={s.label}>Target</Text>
+            <TextInput
+              style={s.input} value={targetText} onChangeText={setTargetText}
+              keyboardType="number-pad" placeholder="8" placeholderTextColor={c.muted}
+              accessibilityLabel="Measurable target number"
+            />
+            <Text style={s.label}>Unit</Text>
+            <TextInput
+              style={s.input} value={unit} onChangeText={setUnit}
+              placeholder="Glasses, pages, minutes" placeholderTextColor={c.muted}
+              accessibilityLabel="Measurable unit"
+            />
+            <Text style={s.hint}>
+              Partial progress counts toward your target on the day, but the streak counts only when you reach 100% of the target.
+            </Text>
+          </View>
+        ) : null}
+
+        <Text style={s.label}>Frequency</Text>
+        <View style={s.wrap}>
+          <Chip label="Every day" active={frequency === 'daily'} onPress={() => setFrequency('daily')} />
+          <Chip label="Specific weekdays" active={frequency === 'weekdays'} onPress={() => setFrequency('weekdays')} />
+          <Chip label="X times per week" active={frequency === 'weekly'} onPress={() => setFrequency('weekly')} />
+        </View>
+
+        {frequency === 'weekdays' ? (
+          <View style={s.wrap}>
+            {WEEKDAY_CHIPS.map((d) => (
+              <Chip key={d.value} label={d.label} active={weekdays.includes(d.value)} onPress={() => toggleWeekday(d.value)} />
+            ))}
+          </View>
+        ) : null}
+
+        {frequency === 'weekly' ? (
+          <View style={s.stepperRow}>
+            <Text style={s.label}>Times per week</Text>
+            <View style={s.stepperControls}>
+              <Pressable style={s.stepper} onPress={() => setWeeklyTarget(Math.max(1, weeklyTarget - 1))} accessibilityRole="button">
+                <Text style={s.stepperText}>−</Text>
+              </Pressable>
+              <Text style={s.stepperValue}>{weeklyTarget}</Text>
+              <Pressable style={s.stepper} onPress={() => setWeeklyTarget(Math.min(7, weeklyTarget + 1))} accessibilityRole="button">
+                <Text style={s.stepperText}>+</Text>
+              </Pressable>
             </View>
-          </ScrollView>
-        </>
-      ) : null}
-      <Text style={styles.label}>Name</Text>
-      <TextInput style={styles.input} placeholder="e.g. Morning Walk" placeholderTextColor={c.muted} value={name} onChangeText={setName} maxLength={60} />
-
-      <Text style={styles.label}>Colour</Text>
-      <View style={styles.colorRow}>
-        {HABIT_COLORS.map((c) => (
-          <Text key={c} onPress={() => setColor(c)} style={[styles.colorDot, { backgroundColor: c }, color === c && styles.colorSelected]}>
-            {color === c ? '✓' : ' '}
-          </Text>
-        ))}
-      </View>
-
-      <Text style={styles.label}>Type</Text>
-      <View style={styles.chips}>
-        <Chip label="Do it" selected={habitType === 'do'} onPress={() => setHabitType('do')} />
-        <Chip label="Avoid it" selected={habitType === 'avoid'} onPress={() => setHabitType('avoid')} />
-        <Chip label="Measurable" selected={habitType === 'measurable'} onPress={() => setHabitType('measurable')} />
-      </View>
-      {habitType === 'measurable' ? (
-        <>
-          <Text style={styles.label}>Daily target</Text>
-          <View style={styles.row}>
-            <TextInput style={[styles.input, { flex: 1 }]} keyboardType="numeric" value={target} onChangeText={setTarget} placeholder="8" placeholderTextColor={c.muted} />
-            <TextInput style={[styles.input, { flex: 1 }]} value={unit} onChangeText={setUnit} placeholder="Unit, e.g. glasses" placeholderTextColor={c.muted} maxLength={20} />
           </View>
-        </>
-      ) : null}
-      {habitType === 'avoid' ? <Text style={styles.help}>For an avoid habit, tapping Done means you successfully avoided it that day.</Text> : null}
+        ) : null}
 
-      <Text style={styles.label}>How often?</Text>
-      <View style={styles.chips}>
-        <Chip label="Every day" selected={freqKind === 'daily'} onPress={() => setFreqKind('daily')} />
-        <Chip label="Specific days" selected={freqKind === 'weekdays'} onPress={() => setFreqKind('weekdays')} />
-        <Chip label="Times per week" selected={freqKind === 'timesPerWeek'} onPress={() => setFreqKind('timesPerWeek')} />
-      </View>
-      {freqKind === 'weekdays' ? (
-        <View style={styles.chips}>
-          {WEEKDAYS.map((d, i) => (
-            <Chip key={d} label={d} selected={days.includes(i)} onPress={() => setDays((prev) => (prev.includes(i) ? prev.filter((x) => x !== i) : [...prev, i]))} />
-          ))}
+        <Text style={s.label}>Time of day</Text>
+        <View style={s.wrap}>
+          <Chip label="Morning" active={timeSlot === 'morning'} onPress={() => setTimeSlot('morning')} />
+          <Chip label="Afternoon" active={timeSlot === 'afternoon'} onPress={() => setTimeSlot('afternoon')} />
+          <Chip label="Evening" active={timeSlot === 'evening'} onPress={() => setTimeSlot('evening')} />
         </View>
-      ) : null}
-      {freqKind === 'timesPerWeek' ? (
-        <View style={styles.chips}>
-          {[1, 2, 3, 4, 5, 6, 7].map((n) => (
-            <Chip key={n} label={`${n}x`} selected={perWeek === n} onPress={() => setPerWeek(n)} />
-          ))}
+
+        <View style={s.switchRow}>
+          <Text style={s.label}>Reminder</Text>
+          <Switch value={reminderEnabled} onValueChange={setReminderEnabled} trackColor={{ false: c.border, true: c.primary }} />
         </View>
-      ) : null}
+        {reminderEnabled ? (
+          <TextInput
+            style={s.input} value={reminderTime} onChangeText={setReminderTime}
+            placeholder="09:00" placeholderTextColor={c.muted}
+            keyboardType="numbers-and-punctuation" maxLength={5}
+            accessibilityLabel="Reminder time in HH:MM format"
+          />
+        ) : null}
+        {reminderEnabled ? <Text style={s.hint}>Reminder scheduling is handled when the habit is saved.</Text> : null}
 
-      <Text style={styles.label}>Time of day</Text>
-      <View style={styles.chips}>
-        <Chip label="Morning" selected={slot === 'morning'} onPress={() => setSlot('morning')} />
-        <Chip label="Afternoon" selected={slot === 'afternoon'} onPress={() => setSlot('afternoon')} />
-        <Chip label="Evening" selected={slot === 'evening'} onPress={() => setSlot('evening')} />
-      </View>
+        <Text style={s.label}>Start date</Text>
+        <TextInput
+          style={s.input} value={startDate} onChangeText={setStartDate}
+          placeholder="2026-10-29" placeholderTextColor={c.muted}
+          keyboardType="numbers-and-punctuation" maxLength={10}
+          accessibilityLabel="Start date in YYYY-MM-DD format"
+        />
 
-      <Text style={styles.label}>Reminder</Text>
-      <View style={styles.chips}>
-        <Chip label="Reminder on" selected={reminderOn} onPress={() => setReminderOn(true)} />
-        <Chip label="No reminder" selected={!reminderOn} onPress={() => setReminderOn(false)} />
-      </View>
-      {reminderOn ? (
-        <View style={styles.chips}>
-          {TIMES.map((t) => (
-            <Chip key={t} label={t} selected={reminderTime === t} onPress={() => setReminderTime(t)} />
-          ))}
+        <Text style={s.label}>Skip / rest days (optional)</Text>
+        <TextInput
+          style={s.input} value={skipDaysRaw} onChangeText={setSkipDaysRaw}
+          placeholder="2026-11-02, 2026-11-09" placeholderTextColor={c.muted}
+          accessibilityLabel="Skip days as comma-separated YYYY-MM-DD dates"
+        />
+        <Text style={s.hint}>Separate dates with commas, for example 2026-11-02, 2026-11-09.</Text>
+
+        <View style={s.actions}>
+          <PrimaryButton label={saving ? 'Saving…' : 'Save habit'} onPress={handleSave} />
+          <SecondaryButton label="Back" onPress={() => nav.back()} />
         </View>
-      ) : null}
-
-      <Card>
-        <Text style={styles.help}>Free plan allows {FREE_HABIT_LIMIT} habits. Premium unlocks unlimited habits, routines, advanced charts and weekly suggestions.</Text>
-      </Card>
-
-      <PrimaryButton label={existing ? 'Save changes' : 'Add habit'} onPress={save} />
-      <GhostButton label="Cancel" onPress={nav.pop} />
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
-
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: c.bg },
+  content: { padding: spacing.lg, gap: spacing.md },
+  title: { fontSize: type.title, fontWeight: '600', color: c.ink },
+  label: { fontSize: type.label, fontWeight: '600', color: c.ink, marginTop: spacing.sm },
+  input: {
+    minHeight: 48, backgroundColor: c.surfaceAlt, borderColor: c.border, borderWidth: 1,
+    borderRadius: radius.md, paddingHorizontal: spacing.md, color: c.ink, fontSize: type.body,
+  },
+  hint: { fontSize: type.small, color: c.muted, lineHeight: 18 },
+  wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  iconBtn: { width: 48, height: 48, borderRadius: radius.md, backgroundColor: c.surfaceAlt, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.border },
+  iconBtnActive: { borderColor: c.primary, backgroundColor: c.surfaceTonal },
+  iconText: { fontSize: 20 },
+  colorBtn: { width: 48, height: 48, borderRadius: 24, borderWidth: 2, borderColor: 'transparent' },
+  colorBtnActive: { borderColor: c.ink },
+  fieldGroup: { gap: spacing.sm },
+  stepperRow: { gap: spacing.sm },
+  stepperControls: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  stepper: { width: 48, height: 48, borderRadius: radius.md, backgroundColor: c.surfaceTonal, alignItems: 'center', justifyContent: 'center' },
+  stepperText: { fontSize: 20, color: c.ink },
+  stepperValue: { fontSize: type.subtitle, fontWeight: '600', color: c.ink, minWidth: 32, textAlign: 'center' },
+  switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  success: { backgroundColor: c.surfaceTonal, borderRadius: radius.md, padding: spacing.md },
+  successText: { fontSize: type.body, fontWeight: '600', color: c.primary },
+  actions: { gap: spacing.sm, marginTop: spacing.sm },
+});

@@ -1,160 +1,242 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Card, ErrorBanner, GhostButton, Inset, PrimaryButton, ProgressBar, SecondaryButton, SectionTitle } from '../components/ui';
 import { useStore } from '../store';
-import { spacing, type, type Palette } from '../theme';
-import { useTheme } from '../useTheme';
-import { Card, GhostButton, PrimaryButton, ProgressBar, SectionTitle } from '../components/ui';
-import { HabitAvatar } from '../components/HabitRow';
 import type { Nav } from '../navigation';
-import { formatDayLabel, formatTime12h, lastNDays, todayKey } from '../lib/dates';
-import { completionRate, computeBestStreak, computeStreak, dayStatus, isDone } from '../lib/streaks';
+import { addDays, formatLongDate, todayKey } from '../lib/dates';
+import { completionFor, computeBestStreak, computeStreak, dayStatus, isDone, isScheduledOn } from '../services/streaks';
+import { c, radius, spacing, type } from '../theme';
 
-export default function HabitDetail({ nav, habitId }: { nav: Nav; habitId: string }): React.JSX.Element {
-  const { state, toggleDone, addValue, deleteHabit, updateHabit, toggleSkip } = useStore();
-  const c = useTheme();
-  const styles = useMemo(() => makeStyles(c), [c]);
-  const habit = state.habits.find((h) => h.id === habitId);
-  const [amount, setAmount] = useState('');
+const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+function scheduleText(habit: Parameters<typeof isScheduledOn>[0]): string {
+  if (habit.frequency === 'daily') return 'Every day';
+  if (habit.frequency === 'weekdays') {
+    if (habit.weekdays.length === 0) return 'Specific weekdays (none selected)';
+    return habit.weekdays.map((d) => WEEKDAY_NAMES[d] ?? '').join(', ');
+  }
+  return `${habit.weeklyTarget} times per week`;
+}
+
+export default function HabitDetail({ nav }: { nav: Nav }) {
+  const { habits, completions, toggleDone, deleteHabit } = useStore();
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const today = todayKey();
-  if (!habit) {
+
+  const habitId = nav.route.name === 'habitDetail' ? nav.route.habitId : null;
+  const habit = habitId ? habits.find((h) => h.id === habitId) : undefined;
+
+  const currentStreak = habit ? computeStreak(habit, completions, today) : 0;
+  const bestStreak = habit ? computeBestStreak(habit, completions, today) : 0;
+  const todayComp = habit ? completionFor(habit.id, today, completions) : undefined;
+  const todayDone = habit ? isDone(habit, todayComp) : false;
+
+  const last7 = useMemo(() => {
+    if (!habit) return { scheduled: 0, done: 0, pct: 0 };
+    let scheduled = 0;
+    let done = 0;
+    for (let i = 6; i >= 0; i--) {
+      const d = addDays(today, -i);
+      if (!isScheduledOn(habit, d)) continue;
+      scheduled++;
+      if (isDone(habit, completionFor(habit.id, d, completions))) done++;
+    }
+    return { scheduled, done, pct: scheduled === 0 ? 0 : Math.round((done / scheduled) * 100) };
+  }, [habit, completions, today]);
+
+  const heatmapWeeks = useMemo(() => {
+    if (!habit) return [] as string[][];
+    const weeks: string[][] = [];
+    const start = addDays(today, -83);
+    for (let w = 0; w < 12; w++) {
+      const week: string[] = [];
+      for (let d = 0; d < 7; d++) week.push(addDays(start, w * 7 + d));
+      weeks.push(week);
+    }
+    return weeks;
+  }, [habit, today]);
+
+  const history = useMemo(() => {
+    if (!habit) return [] as { date: string; status: ReturnType<typeof dayStatus> }[];
+    const out: { date: string; status: ReturnType<typeof dayStatus> }[] = [];
+    for (let i = 0; i < 14; i++) {
+      const d = addDays(today, -i);
+      out.push({ date: d, status: dayStatus(habit, d, completions, today) });
+    }
+    return out;
+  }, [habit, completions, today]);
+
+  if (nav.route.name !== 'habitDetail') {
     return (
-      <View style={styles.wrap}>
-        <Text style={styles.hero}>Habit not found</Text>
-        <GhostButton label="Back" onPress={nav.pop} />
-      </View>
+      <SafeAreaView style={s.root}>
+        <View style={s.content}>
+          <ErrorBanner message="This habit could not be opened. Please go back and try again." />
+          <SecondaryButton label="Back" onPress={() => nav.back()} />
+        </View>
+      </SafeAreaView>
     );
   }
-  const streak = computeStreak(habit, state.checkIns, today);
-  const best = computeBestStreak(habit, state.checkIns, today);
-  const rate7 = completionRate(habit, state.checkIns, today, 7);
-  const rate30 = completionRate(habit, state.checkIns, today, 30);
-  const doneToday = isDone(habit, today, state.checkIns);
-  const current = state.checkIns[`${habit.id}|${today}`];
-  const gridDays = lastNDays(today, 90);
-  const thisHabitId = habit.id;
-
-  function confirmDelete() {
-    Alert.alert('Delete habit?', 'This deletes the habit and its history. This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => { deleteHabit(thisHabitId); nav.pop(); } },
-    ]);
+  if (!habit) {
+    return (
+      <SafeAreaView style={s.root}>
+        <View style={s.content}>
+          <ErrorBanner message="This habit no longer exists." />
+          <SecondaryButton label="Back" onPress={() => nav.back()} />
+        </View>
+      </SafeAreaView>
+    );
   }
 
+  const dotColor = (date: string): string => {
+    const status = dayStatus(habit, date, completions, today);
+    if (status === 'done') return c.primary;
+    if (status === 'missed' || status === 'failed') return c.error;
+    if (status === 'not-scheduled') return c.surfaceAlt;
+    if (status === 'partial') return c.accent;
+    if (status === 'skipped') return c.muted;
+    return c.border;
+  };
+
+  const statusLabel = (status: string): string => {
+    if (status === 'done') return 'Done';
+    if (status === 'missed') return 'Missed';
+    if (status === 'failed') return 'Failed';
+    if (status === 'partial') return 'Partial';
+    if (status === 'skipped') return 'Skipped';
+    if (status === 'not-scheduled') return 'Not scheduled';
+    return 'Pending';
+  };
+
   return (
-    <ScrollView contentContainerStyle={styles.wrap}>
-      <View style={styles.header}>
-        <HabitAvatar habit={habit} size={64} />
-        <View style={{ flex: 1 }}>
-          <Text style={styles.hero}>{habit.name}</Text>
-          <Text style={styles.meta}>
-            {habit.type === 'measurable' ? `Target ${habit.target} ${habit.unit} · ` : ''}{habit.slot} · {habit.reminderTime ? formatTime12h(habit.reminderTime) : 'No reminder'}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.stats}>
-        <Card style={styles.stat}><Text style={styles.statNum}>{streak}</Text><Text style={styles.statLabel}>Current streak</Text></Card>
-        <Card style={styles.stat}><Text style={styles.statNum}>{best}</Text><Text style={styles.statLabel}>Best streak</Text></Card>
-        <Card style={styles.stat}><Text style={styles.statNum}>{rate7 === null ? '—' : `${rate7}%`}</Text><Text style={styles.statLabel}>Last 7 days</Text></Card>
-      </View>
-
-      <Card>
-        <Text style={styles.cardTitle}>Today</Text>
-        {habit.type === 'measurable' ? (
-          <>
-            <Text style={styles.cardBody}>Logged today: {current ?? 0} / {habit.target} {habit.unit}</Text>
-            <ProgressBar value={current === undefined ? 0 : Math.min(100, (current / habit.target) * 100)} color={habit.color} />
-            <View style={styles.amountRow}>
-              <TextInput style={styles.input} keyboardType="numeric" placeholder="Amount" placeholderTextColor={c.muted} value={amount} onChangeText={setAmount} />
-              <PrimaryButton label="Log" onPress={() => { const v = Number(amount); if (Number.isFinite(v) && v > 0) { addValue(habit, today, (current ?? 0) + v); setAmount(''); } }} />
-            </View>
-          </>
-        ) : (
-          <PrimaryButton label={doneToday ? 'Mark as not done' : 'Mark done today'} onPress={() => toggleDone(habit, today)} />
-        )}
-        <View style={{ height: 8 }} />
-        <GhostButton label={habit.skipDates.includes(today) ? 'Unskip today' : 'Skip today (planned)'} onPress={() => toggleSkip(habit.id, today)} />
-        <GhostButton label={habit.paused ? 'Resume habit' : 'Pause habit'} onPress={() => updateHabit({ ...habit, paused: !habit.paused })} />
-      </Card>
-
-      <SectionTitle>Last 7 days</SectionTitle>
-      <Card>
-        {lastNDays(today, 7).map((d) => (
-          <View key={d} style={styles.dayRow}>
-            <Text style={styles.dayLabel}>{d === today ? 'Today' : formatDayLabel(d)}</Text>
-            <Text style={styles.dayStatus}>{dayStatus(habit, d, state.checkIns, today)}</Text>
+    <SafeAreaView style={s.root}>
+      <ScrollView contentContainerStyle={s.content}>
+        <View style={s.header}>
+          <View style={[s.tile, { backgroundColor: habit.color }]}>
+            <Text style={s.tileText}>{habit.icon}</Text>
           </View>
-        ))}
-      </Card>
-
-      {habit.type === 'measurable' ? (
-        <>
-          <SectionTitle>Value grid — last 4 weeks</SectionTitle>
-          <Card>
-            {[0, 1, 2, 3].map((w) => {
-              const weekDays = lastNDays(today, 28).slice(w * 7, w * 7 + 7);
-              const total = weekDays.reduce((sum, d) => sum + (state.checkIns[`${habit.id}|${d}`] ?? 0), 0);
-              return (
-                <View key={w} style={{ marginBottom: 10 }}>
-                  <View style={{ flexDirection: 'row', gap: 4 }}>
-                    {weekDays.map((d) => {
-                      const v = state.checkIns[`${habit.id}|${d}`];
-                      return (
-                        <View key={d} style={{ flex: 1, minHeight: 44, borderRadius: 8, borderWidth: 1, borderColor: c.border, backgroundColor: v ? habit.color : c.surface2, alignItems: 'center', justifyContent: 'center' }}>
-                          <Text style={{ color: v ? '#fff' : c.ink, fontWeight: '700' }}>{v ?? 0}</Text>
-                        </View>
-                      );
-                    })}
-                  </View>
-                  <Text style={styles.meta}>Week total: {total} {habit.unit} · {formatDayLabel(weekDays[0])} to {formatDayLabel(weekDays[6])}</Text>
-                </View>
-              );
-            })}
-            <Text style={styles.legend}>Each cell is one day's logged amount. Empty days count as 0 in the weekly total.</Text>
-          </Card>
-        </>
-      ) : null}
-
-      <SectionTitle>Last 3 months</SectionTitle>
-      <Card>
-        <View style={styles.grid}>
-          {gridDays.map((d) => {
-            const s = dayStatus(habit, d, state.checkIns, today);
-            const bg = s === 'done' ? habit.color : s === 'missed' ? c.redSoft : s === 'skipped' ? c.amberSoft : c.surface2;
-            return <View key={d} style={[styles.cell, { backgroundColor: bg }]} />;
-          })}
+          <View style={s.headerText}>
+            <Text style={s.title}>{habit.name}</Text>
+            <Text style={s.subtitle}>
+              {habit.type === 'do' ? 'Do it' : habit.type === 'avoid' ? 'Avoid it' : `Measurable · ${habit.target} ${habit.unit}`} · {habit.timeSlot}
+            </Text>
+          </View>
         </View>
-        <Text style={styles.legend}>Coloured = done · Pink = missed · Amber = skipped · Grey = not due yet</Text>
-        <Text style={styles.meta}>30-day completion: {rate30 === null ? 'No due days yet' : `${rate30}%`}</Text>
-      </Card>
 
-      <PrimaryButton label="Edit habit" onPress={() => nav.push({ name: 'habitForm', habitId: habit.id })} />
-      <GhostButton label="Delete habit" onPress={confirmDelete} />
-      <Text style={styles.note}>Tip: a planned skip does not break your streak. An unplanned missed day does.</Text>
-    </ScrollView>
+        <Card>
+          <View style={s.streakRow}>
+            <View>
+              <Text style={s.big}>{currentStreak}</Text>
+              <Text style={s.small}>Current streak (days)</Text>
+            </View>
+            <View>
+              <Text style={s.big}>{bestStreak}</Text>
+              <Text style={s.small}>Best streak (days)</Text>
+            </View>
+          </View>
+        </Card>
+
+        <SectionTitle>Last 7 days</SectionTitle>
+        <Card>
+          <Text style={s.body}>
+            {last7.done} of {last7.scheduled} scheduled days done ({last7.pct}%).
+          </Text>
+          <ProgressBar pct={last7.pct} />
+        </Card>
+
+        <SectionTitle>Last 12 weeks</SectionTitle>
+        <Card>
+          {heatmapWeeks.map((week, wi) => (
+            <View key={`week-${wi}`} style={s.weekRow}>
+              {week.map((d) => (
+                <View key={d} style={[s.dot, { backgroundColor: dotColor(d) }]} />
+              ))}
+            </View>
+          ))}
+          <Text style={s.legend}>Teal dot = done · Red dot = missed or failed · Grey dot = not scheduled</Text>
+        </Card>
+
+        <SectionTitle>Schedule</SectionTitle>
+        <Inset>
+          <Text style={s.body}>{scheduleText(habit)}</Text>
+          <Text style={s.body}>Start date: {habit.startDate}</Text>
+          <Text style={s.body}>
+            Skip days: {habit.skipDays.length > 0 ? habit.skipDays.join(', ') : 'None'}
+          </Text>
+          {habit.reminderEnabled && habit.reminderTime ? (
+            <Text style={s.body}>Reminder: {habit.reminderTime}</Text>
+          ) : (
+            <Text style={s.body}>Reminder: off</Text>
+          )}
+          {habit.paused ? <Text style={s.body}>Paused</Text> : null}
+        </Inset>
+
+        <SectionTitle>History · Last 14 days</SectionTitle>
+        <View style={s.history}>
+          {history.map(({ date, status }) => (
+            <View key={date} style={s.historyRow}>
+              <Text style={s.body}>{formatLongDate(date)}</Text>
+              <Text style={[s.body, status === 'done' && { color: c.primary }, (status === 'missed' || status === 'failed') && { color: c.error }]}>
+                {statusLabel(status)}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={s.actions}>
+          <PrimaryButton
+            label={todayDone ? 'Undo today' : 'Mark today complete'}
+            onPress={() => toggleDone(habit.id, today)}
+          />
+          <SecondaryButton label="Edit" onPress={() => nav.push({ name: 'habitForm', habitId: habit.id })} />
+          {!confirmingDelete ? (
+            <GhostButton label="Delete habit" danger onPress={() => setConfirmingDelete(true)} />
+          ) : (
+            <Card>
+              <Text style={s.warning}>Deleting removes this habit and all its history.</Text>
+              <View style={s.deleteRow}>
+                <Pressable
+                  style={s.deleteBtn}
+                  onPress={() => {
+                    deleteHabit(habit.id);
+                    nav.back();
+                  }}
+                  accessibilityRole="button"
+                >
+                  <Text style={s.deleteBtnText}>Confirm delete</Text>
+                </Pressable>
+                <SecondaryButton label="Cancel" onPress={() => setConfirmingDelete(false)} />
+              </View>
+            </Card>
+          )}
+          <SecondaryButton label="Back" onPress={() => nav.back()} />
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
-function makeStyles(c: Palette) {
-  return StyleSheet.create({
-    wrap: { flexGrow: 1, padding: spacing.lg, gap: 14, backgroundColor: c.bg },
-    header: { flexDirection: 'row', gap: 14, alignItems: 'center' },
-    hero: { fontSize: type.title, fontWeight: '800', color: c.ink },
-    meta: { fontSize: type.small, color: c.muted, marginTop: 4, lineHeight: 19 },
-    stats: { flexDirection: 'row', gap: 10 },
-    stat: { flex: 1, alignItems: 'center', gap: 2 },
-    statNum: { fontSize: 26, fontWeight: '800', color: c.ink },
-    statLabel: { fontSize: type.caption, color: c.muted, textAlign: 'center' },
-    cardTitle: { fontSize: type.subtitle, fontWeight: '700', color: c.ink, marginBottom: 6 },
-    cardBody: { fontSize: type.body, color: c.muted, marginBottom: 8 },
-    amountRow: { flexDirection: 'row', gap: 10, marginTop: 10, alignItems: 'center' },
-    input: { flex: 1, borderWidth: 1, borderColor: c.border, borderRadius: 12, minHeight: 48, paddingHorizontal: 12, fontSize: type.body, backgroundColor: c.surface, color: c.ink },
-    dayRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.border },
-    dayLabel: { fontSize: type.body, color: c.ink },
-    dayStatus: { fontSize: type.body, fontWeight: '600', color: c.muted, textTransform: 'capitalize' },
-    grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
-    cell: { width: 22, height: 22, borderRadius: 6, borderWidth: 1, borderColor: c.border },
-    legend: { fontSize: type.small, color: c.muted, marginTop: 10, lineHeight: 19 },
-    note: { fontSize: type.small, color: c.muted, lineHeight: 19 },
-  });
-}
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: c.bg },
+  content: { padding: spacing.lg, gap: spacing.md },
+  header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  tile: { width: 56, height: 56, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center' },
+  tileText: { fontSize: 28 },
+  headerText: { flex: 1, gap: 2 },
+  title: { fontSize: type.title, fontWeight: '600', color: c.ink },
+  subtitle: { fontSize: type.body, color: c.muted },
+  streakRow: { flexDirection: 'row', gap: spacing.xxl },
+  big: { fontSize: type.numeral, fontWeight: '600', color: c.ink },
+  small: { fontSize: type.small, color: c.muted },
+  body: { fontSize: type.body, color: c.muted, lineHeight: 20 },
+  weekRow: { flexDirection: 'row', gap: 6 },
+  dot: { width: 12, height: 12, borderRadius: 6 },
+  legend: { fontSize: type.small, color: c.muted, lineHeight: 18 },
+  history: { gap: spacing.sm },
+  historyRow: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: c.surface, borderRadius: radius.md, padding: spacing.md },
+  actions: { gap: spacing.sm, marginTop: spacing.sm },
+  warning: { fontSize: type.body, fontWeight: '600', color: c.error, lineHeight: 20 },
+  deleteRow: { flexDirection: 'row', gap: spacing.sm },
+  deleteBtn: { flex: 1, minHeight: 48, borderRadius: radius.md, backgroundColor: c.error, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.md },
+  deleteBtnText: { fontSize: type.label, fontWeight: '600', color: '#FFFFFF' },
+});
