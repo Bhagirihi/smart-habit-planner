@@ -29,3 +29,17 @@ export function resolveBackAction(input: { sheetOpen: boolean; paywallOpen: bool
 export const TAB_ROUTES: Record<TabName, Route> = {
   today: { name: 'today' }, routines: { name: 'routines' }, progress: { name: 'progress' }, settings: { name: 'settings' },
 };
+// Pure effective-screen resolution, used by the App shell and unit-tested.
+// Bug it fixes (found from a real Expo Go screenshot, 2026-10-29): the stack
+// starts at splash on every launch. Before this helper, a returning user with
+// onboardingComplete=true kept route=splash forever, so Splash showed
+// "Ready. Opening your day..." and never advanced to Today. Fresh users go to
+// Welcome, loading users stay on Splash, and a splash route after loading
+// always resolves to Today for a returning user.
+export function resolveEffectiveRoute(ready: boolean, onboardingComplete: boolean, route: Route): Route {
+  if (!ready) return { name: 'splash' };
+  const onboardingScreens = route.name === 'welcome' || route.name === 'goal' || route.name === 'starter';
+  if (!onboardingComplete && !onboardingScreens) return { name: 'welcome' };
+  if (route.name === 'splash') return { name: 'today' };
+  return route;
+}

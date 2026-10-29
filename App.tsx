@@ -5,7 +5,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
 import { StoreProvider, useStore } from './src/store';
-import { resolveBackAction, TAB_ROUTES, type Nav, type Route, type TabName } from './src/navigation';
+import { resolveBackAction, resolveEffectiveRoute, TAB_ROUTES, type Nav, type Route, type TabName } from './src/navigation';
 import { c, radius, spacing, type } from './src/theme';
 import Splash from './src/screens/Splash';
 import OnboardingWelcome from './src/screens/OnboardingWelcome';
@@ -60,14 +60,10 @@ function Shell() {
   }, [showSheet, paywallOpen, stack.length]);
   const currentTab: TabName | null =
     route.name === 'today' ? 'today' : route.name === 'routines' ? 'routines' : route.name === 'progress' ? 'progress' : route.name === 'settings' ? 'settings' : null;
-  // Decide the effective screen: before ready -> splash; after ready, if onboarding
-  // is incomplete and we are not already inside onboarding, start at welcome.
-  const onboardingScreens = route.name === 'welcome' || route.name === 'goal' || route.name === 'starter';
-  const effective: Route = !ready
-    ? { name: 'splash' }
-    : !prefs.onboardingComplete && !onboardingScreens
-      ? { name: 'welcome' }
-      : route;
+  // Decide the effective screen via the tested helper in navigation.ts.
+  // Returning users must never stay on splash after loading: splash resolves
+  // to Today once ready, fresh users resolve to Welcome.
+  const effective: Route = resolveEffectiveRoute(ready, prefs.onboardingComplete, route);
   const screenNav: Nav = { ...nav, route: effective };
   const renderScreen = (r: Route) => {
     switch (r.name) {
