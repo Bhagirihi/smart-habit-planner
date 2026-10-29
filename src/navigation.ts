@@ -1,4 +1,4 @@
-export type Tab = 'today' | 'routines' | 'progress' | 'settings';
+export type Tab = 'today' | 'tasks' | 'routines' | 'progress' | 'settings';
 
 export type Route =
   | { name: 'today' }
@@ -7,7 +7,8 @@ export type Route =
   | { name: 'routineDetail'; routineId: string }
   | { name: 'routineForm'; routineId?: string }
   | { name: 'weeklyReport' }
-  | { name: 'paywall' };
+  | { name: 'paywall' }
+  | { name: 'taskForm'; taskId?: string; date?: string };
 
 export interface Nav {
   tab: Tab;

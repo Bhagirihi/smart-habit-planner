@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import type { AppState, CheckIns, Habit, Routine, Settings } from './types';
+import type { AppState, CheckIns, Habit, Routine, Settings, SubTask, Task } from './types';
 import { checkInKey } from './types';
 import { defaultState, loadState, saveState } from './lib/storage';
 import { todayKey } from './lib/dates';
@@ -20,6 +20,14 @@ interface Store {
   addRoutine: (r: Routine) => void;
   updateRoutine: (r: Routine) => void;
   deleteRoutine: (id: string) => void;
+  addTask: (t: Task) => void;
+  updateTask: (t: Task) => void;
+  deleteTask: (id: string) => void;
+  toggleTask: (id: string) => void;
+  addSubTask: (s: SubTask) => void;
+  updateSubTask: (s: SubTask) => void;
+  deleteSubTask: (id: string) => void;
+  toggleSubTask: (id: string) => void;
   updateSettings: (patch: Partial<Settings>) => void;
   resetAll: () => void;
 }
@@ -107,6 +115,43 @@ export function StoreProvider({ children }: { children: React.ReactNode }): Reac
               : h,
           ),
         })),
+      addTask: (t) => setStateRaw((p) => ({ ...p, tasks: [...(p.tasks ?? []), t] })),
+      updateTask: (t) => setStateRaw((p) => ({ ...p, tasks: (p.tasks ?? []).map((x) => (x.id === t.id ? t : x)) })),
+      deleteTask: (id) =>
+        setStateRaw((p) => ({
+          ...p,
+          tasks: (p.tasks ?? []).filter((x) => x.id !== id),
+          subtasks: (p.subtasks ?? []).filter((x) => x.taskId !== id),
+        })),
+      toggleTask: (id) =>
+        setStateRaw((p) => ({
+          ...p,
+          tasks: (p.tasks ?? []).map((x) => (x.id === id ? { ...x, done: !x.done, autoFinished: false } : x)),
+        })),
+      addSubTask: (s) => setStateRaw((p) => ({ ...p, subtasks: [...(p.subtasks ?? []), s] })),
+      updateSubTask: (s) => setStateRaw((p) => ({ ...p, subtasks: (p.subtasks ?? []).map((x) => (x.id === s.id ? s : x)) })),
+      deleteSubTask: (id) =>
+        setStateRaw((p) => {
+          const subtasks = (p.subtasks ?? []).filter((x) => x.id !== id);
+          return { ...p, subtasks };
+        }),
+      toggleSubTask: (id) =>
+        setStateRaw((p) => {
+          const subtasks = (p.subtasks ?? []).map((x) => (x.id === id ? { ...x, done: !x.done } : x));
+          const sub = subtasks.find((x) => x.id === id);
+          if (!sub) return { ...p, subtasks };
+          const siblings = subtasks.filter((x) => x.taskId === sub.taskId);
+          const allDone = siblings.length > 0 && siblings.every((x) => x.done);
+          const tasks = (p.tasks ?? []).map((t) => {
+            if (t.id !== sub.taskId) return t;
+            if (allDone) return { ...t, done: true, autoFinished: true };
+            // Unchecking a subtask only un-does a task that was auto-finished.
+            // A task the user finished by hand stays finished.
+            if (t.autoFinished) return { ...t, done: false, autoFinished: false };
+            return t;
+          });
+          return { ...p, subtasks, tasks };
+        }),
       addRoutine: (r) => setStateRaw((p) => ({ ...p, routines: [...p.routines, r] })),
       updateRoutine: (r) => setStateRaw((p) => ({ ...p, routines: p.routines.map((x) => (x.id === r.id ? r : x)) })),
       deleteRoutine: (id) => setStateRaw((p) => ({ ...p, routines: p.routines.filter((x) => x.id !== id) })),

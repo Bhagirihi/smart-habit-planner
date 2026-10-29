@@ -57,7 +57,8 @@ npx eas build -p android --profile preview
 
 ## What is implemented (all 14 screens from the agreed flow)
 
-- Splash, Onboarding (5 interactive steps: pick Tick or Measurable, create a real first habit, try a task list with tappable subtasks, set a daily reminder with Save Habit, then a summary)
+- Splash, Onboarding (5 interactive steps: pick Tick or Measurable, create a real first habit, create a real task, set a daily reminder with Save Habit, then a summary of both)
+- Tasks tab: Timeline view grouped by date, All Tasks grouped by list and priority with subtask counts, Plan day with week strip, timed timeline, gaps with Plan this slot, and a task creation sheet (title, date, time, reminder, Repeat, list, priority, sub-tasks). Checking all sub-tasks auto-finishes the task. Repeat (Daily/Weekly) and Import Calendar are PRO-gated and open the paywall on Free; real calendar import is not yet implemented.
 - Today (home): habits grouped Morning / Afternoon / Evening, tap to
   complete or undo, progress ring/bar, missed-yesterday banner, reminder
   rationale card
@@ -76,8 +77,9 @@ npx eas build -p android --profile preview
   evening review time, backup note, demo Premium preview switch, delete
   all data with double confirmation
 
-Bottom tabs: Today, Routines, Progress, Settings, with a central + button
-that opens New Habit or New Routine.
+Bottom tabs: Today, Tasks, Routines, Progress, Settings, with a central + button
+that opens New Habit, New Routine, or New Task. Default theme is Dark for new
+users; Light is still available in Settings.
 
 ## Rules implemented
 
@@ -118,4 +120,4 @@ be tested without faking a purchase.
 ## Verification (this workspace)
 
 - `npx tsc --noEmit` — passes, zero errors.
-- `npx expo export --platform android` — passes; bundle built (797 modules, 1.9MB). The `dist/` output was cleaned up after verification, so re-run the export to regenerate it.
+- `npx expo export --platform android` — passes; bundle built (801 modules, 1.9MB). The `dist/` output was cleaned up after verification, so re-run the export to regenerate it.

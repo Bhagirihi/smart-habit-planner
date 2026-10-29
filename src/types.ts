@@ -29,6 +29,34 @@ export interface Routine {
   createdAt: string;
 }
 
+export type TaskPriority = 'none' | 'low' | 'high';
+export type TaskRepeat = 'never' | 'daily' | 'weekly';
+export type TaskList = 'My Tasks' | 'Personal' | 'Work' | 'Shopping';
+
+export const TASK_LISTS: TaskList[] = ['My Tasks', 'Personal', 'Work', 'Shopping'];
+
+export interface Task {
+  id: string;
+  title: string;
+  list: TaskList;
+  priority: TaskPriority;
+  date: string; // YYYY-MM-DD
+  time: string | null; // "07:00" 24h, null = no time
+  reminderTime: string | null; // only meaningful when time is set
+  reminderEnabled: boolean;
+  repeat: TaskRepeat;
+  done: boolean;
+  autoFinished: boolean; // true when done only because all subtasks were done
+  createdAt: string; // YYYY-MM-DD
+}
+
+export interface SubTask {
+  id: string;
+  taskId: string;
+  title: string;
+  done: boolean;
+}
+
 /** Key: `${habitId}|${date}` -> value logged that day (1 for do/avoid, amount for measurable). */
 export type CheckIns = Record<string, number>;
 
@@ -38,7 +66,7 @@ export interface Settings {
   notificationsEnabled: boolean;
   eveningReviewTime: string; // "21:00"
   premiumDemo: boolean; // demo-only preview switch in Settings; NOT a purchase
-  themeMode: 'light' | 'dark'; // appearance choice, stored in AsyncStorage, default 'light'
+  themeMode: 'light' | 'dark'; // appearance choice, stored in AsyncStorage, default 'dark'
 }
 
 export interface AppState {
@@ -46,6 +74,8 @@ export interface AppState {
   habits: Habit[];
   routines: Routine[];
   checkIns: CheckIns;
+  tasks: Task[];
+  subtasks: SubTask[];
   settings: Settings;
 }
 

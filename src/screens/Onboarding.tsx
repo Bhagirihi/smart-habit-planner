@@ -3,9 +3,10 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 import { useStore } from '../store';
 import { HABIT_COLORS } from '../theme';
 import { newId } from '../lib/seed';
-import { formatTime12h, todayKey } from '../lib/dates';
+import { addDays, formatTime12h, todayKey } from '../lib/dates';
 import { requestNotificationPermission } from '../lib/notifications';
-import type { Habit, HabitType } from '../types';
+import type { Habit, HabitType, TaskList, TaskPriority } from '../types';
+import { TASK_LISTS } from '../types';
 
 /**
  * Interactive onboarding, fixed dark style (near-black + bright green) so the
@@ -18,8 +19,10 @@ import type { Habit, HabitType } from '../types';
  * habit picker was dropped: it made onboarding longer without the user
  * doing anything, and these 5 steps already create one real habit.
  *
- * No Tasks/todo data model is built here. Step 3 is a demo list only:
- * its checked state lives in local component state and is never persisted.
+ * Step 3 is now REAL, not a demo: the user creates a real one-time task
+ * (title, date, list, priority, one sub-task) that is saved to the store
+ * in finish(), alongside the habit. The full task editor (time, reminder,
+ * repeat, more sub-tasks) lives in the Tasks screen after onboarding.
  */
 
 const BG = '#0A0A0A';
@@ -33,26 +36,6 @@ const DIM = '#71717A';
 const TICK_CELLS = Array.from({ length: 28 }, (_, i) => i % 3 !== 2);
 const MEASURABLE_VALUES = [2, 1, 3, 0, 2, 1, 2, 3, 1, 2];
 
-const DEMO_TASKS = [
-  {
-    id: 'morning',
-    title: 'Plan your morning',
-    subs: [
-      { id: 'm1', label: 'Drink a glass of water' },
-      { id: 'm2', label: 'Stretch for 5 minutes' },
-      { id: 'm3', label: "Write today's top task" },
-    ],
-  },
-  {
-    id: 'evening',
-    title: 'Evening wind-down',
-    subs: [
-      { id: 'e1', label: 'Put the phone away' },
-      { id: 'e2', label: 'Read 10 pages' },
-    ],
-  },
-];
-
 const HOURS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 const MINUTES = [0, 15, 30, 45];
 
@@ -61,7 +44,7 @@ function pad(n: number): string {
 }
 
 export default function Onboarding(): React.JSX.Element {
-  const { completeOnboarding, updateSettings } = useStore();
+  const { completeOnboarding, updateSettings, addTask, addSubTask } = useStore();
   const [step, setStep] = useState(0);
   const [kind, setKind] = useState<HabitType | null>(null);
   const [name, setName] = useState('');
@@ -70,7 +53,11 @@ export default function Onboarding(): React.JSX.Element {
   const [hour12, setHour12] = useState(9);
   const [minute, setMinute] = useState(0);
   const [period, setPeriod] = useState<'AM' | 'PM'>('AM');
-  const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const [taskTitle, setTaskTitle] = useState('');
+  const [taskDate, setTaskDate] = useState(todayKey());
+  const [taskList, setTaskList] = useState<TaskList>('My Tasks');
+  const [taskPriority, setTaskPriority] = useState<TaskPriority>('none');
+  const [taskSub, setTaskSub] = useState('');
   const [draft, setDraft] = useState<Habit | null>(null);
   const [savingReminder, setSavingReminder] = useState(false);
 
@@ -125,12 +112,32 @@ export default function Onboarding(): React.JSX.Element {
 
   function finish() {
     if (!draft) return;
+    // Save the real task from step 3 first, then finish onboarding.
+    // Both are functional setState updates, so neither overwrites the other.
+    const cleanTaskTitle = taskTitle.trim();
+    const cleanSub = taskSub.trim();
+    if (cleanTaskTitle && cleanSub) {
+      const taskId = newId('task');
+      addTask({
+        id: taskId,
+        title: cleanTaskTitle,
+        list: taskList,
+        priority: taskPriority,
+        date: taskDate,
+        time: null,
+        reminderTime: null,
+        reminderEnabled: false,
+        repeat: 'never',
+        done: false,
+        autoFinished: false,
+        createdAt: todayKey(),
+      });
+      addSubTask({ id: newId('sub'), taskId, title: cleanSub, done: false });
+    }
     // Goal choice was dropped (see header comment); wake time keeps its
     // previous default so Settings still shows a value.
     completeOnboarding([draft], '', '07:00');
   }
-
-  const demoTapped = Object.values(checked).some(Boolean);
 
   return (
     <ScrollView contentContainerStyle={styles.wrap} style={styles.screen}>
@@ -215,28 +222,53 @@ export default function Onboarding(): React.JSX.Element {
         </>
       ) : step === 2 ? (
         <>
-          <Text style={styles.hero}>Try a task list</Text>
-          <Text style={styles.body}>This is just a practice list, nothing here is saved. Tap at least one box to feel how checking things off works.</Text>
-          {DEMO_TASKS.map((task) => {
-            const done = task.subs.every((s) => checked[s.id]);
-            return (
-              <View key={task.id} style={styles.demoCard}>
-                <View style={styles.demoHead}>
-                  <Text style={[styles.demoTitle, done && styles.doneText]}>{task.title}</Text>
-                  <Text style={[styles.demoState, done && styles.demoStateDone]}>{done ? '✓ Completed' : `${task.subs.filter((s) => checked[s.id]).length}/${task.subs.length}`}</Text>
-                </View>
-                {task.subs.map((s) => (
-                  <Pressable key={s.id} onPress={() => setChecked((p) => ({ ...p, [s.id]: !p[s.id] }))} style={styles.subRow}>
-                    <View style={[styles.box, checked[s.id] && styles.boxOn]}>
-                      <Text style={styles.boxText}>{checked[s.id] ? '✓' : ''}</Text>
-                    </View>
-                    <Text style={[styles.subLabel, checked[s.id] && styles.doneText]}>{s.label}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            );
-          })}
-          <GreenButton label="Continue" disabled={!demoTapped} onPress={() => setStep(3)} />
+          <Text style={styles.hero}>Create your first task</Text>
+          <Text style={styles.body}>This is a real task, not a practice one. It will appear on your Tasks screen after onboarding, with its sub-task ready to check off.</Text>
+          <Text style={styles.label}>Task title</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. Book the dentist"
+            placeholderTextColor={DIM}
+            value={taskTitle}
+            onChangeText={setTaskTitle}
+            maxLength={120}
+          />
+          <Text style={styles.label}>Date</Text>
+          <View style={styles.chipRow}>
+            <Pressable onPress={() => setTaskDate(todayKey())} style={[styles.chip, taskDate === todayKey() && styles.chipOn]}>
+              <Text style={[styles.chipText, taskDate === todayKey() && styles.chipTextOn]}>Today</Text>
+            </Pressable>
+            <Pressable onPress={() => setTaskDate(addDays(todayKey(), 1))} style={[styles.chip, taskDate === addDays(todayKey(), 1) && styles.chipOn]}>
+              <Text style={[styles.chipText, taskDate === addDays(todayKey(), 1) && styles.chipTextOn]}>Tomorrow</Text>
+            </Pressable>
+          </View>
+          <Text style={styles.label}>List</Text>
+          <View style={styles.chipRow}>
+            {TASK_LISTS.map((l) => (
+              <Pressable key={l} onPress={() => setTaskList(l)} style={[styles.chip, taskList === l && styles.chipOn]}>
+                <Text style={[styles.chipText, taskList === l && styles.chipTextOn]}>{l}</Text>
+              </Pressable>
+            ))}
+          </View>
+          <Text style={styles.label}>Priority</Text>
+          <View style={styles.chipRow}>
+            {([['none', 'No Priority'], ['low', 'Low'], ['high', 'High']] as const).map(([v, label]) => (
+              <Pressable key={v} onPress={() => setTaskPriority(v)} style={[styles.chip, taskPriority === v && styles.chipOn]}>
+                <Text style={[styles.chipText, taskPriority === v && styles.chipTextOn]}>{label}</Text>
+              </Pressable>
+            ))}
+          </View>
+          <Text style={styles.label}>One sub-task</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. Find the clinic number"
+            placeholderTextColor={DIM}
+            value={taskSub}
+            onChangeText={setTaskSub}
+            maxLength={120}
+          />
+          <Text style={styles.body}>You can add more sub-tasks, a time, and a reminder for this task later, from the Tasks screen.</Text>
+          <GreenButton label="Continue" disabled={!taskTitle.trim() || !taskSub.trim()} onPress={() => setStep(3)} />
           <GhostButton label="Back" onPress={() => setStep(1)} />
         </>
       ) : step === 3 ? (
@@ -302,8 +334,15 @@ export default function Onboarding(): React.JSX.Element {
             </Text>
             <Text style={styles.summaryLine}>✓ Picked how to track it</Text>
             <Text style={styles.summaryLine}>✓ Created your first habit</Text>
-            <Text style={styles.summaryLine}>✓ Tried a task list</Text>
             <Text style={styles.summaryLine}>✓ Set your reminder</Text>
+          </View>
+          <View style={styles.summaryCard}>
+            <Text style={styles.demoTitle}>{taskTitle.trim()}</Text>
+            <Text style={styles.pickSub}>
+              {taskList} · {taskPriority === 'high' ? 'High priority' : taskPriority === 'low' ? 'Low priority' : 'No Priority'} · {taskDate === todayKey() ? 'Today' : 'Tomorrow'}
+            </Text>
+            <Text style={styles.summaryLine}>☐ {taskSub.trim()} (1 sub-task)</Text>
+            <Text style={styles.summaryLine}>✓ Created your first task — it will be on the Tasks screen</Text>
           </View>
           <GreenButton label="Start My Day" disabled={!draft} onPress={finish} />
         </>

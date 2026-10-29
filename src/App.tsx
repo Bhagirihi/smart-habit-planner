@@ -16,10 +16,13 @@ import Progress from './screens/Progress';
 import WeeklyReport from './screens/WeeklyReport';
 import Paywall from './screens/Paywall';
 import Settings from './screens/Settings';
+import Tasks from './screens/Tasks';
+import TaskForm from './screens/TaskForm';
 import { Card } from './components/ui';
 
 const TAB_LABELS: { key: Tab; label: string }[] = [
   { key: 'today', label: 'Today' },
+  { key: 'tasks', label: 'Tasks' },
   { key: 'routines', label: 'Routines' },
   { key: 'progress', label: 'Progress' },
   { key: 'settings', label: 'Settings' },
@@ -34,6 +37,7 @@ function routeTitle(r: Route): string {
     case 'routineForm': return r.routineId ? 'Edit Routine' : 'New Routine';
     case 'weeklyReport': return 'Weekly Report';
     case 'paywall': return 'Premium';
+    case 'taskForm': return r.taskId ? 'Edit Task' : 'New Task';
   }
 }
 
@@ -111,6 +115,7 @@ function Shell(): React.JSX.Element {
       case 'routineForm': return <RoutineForm nav={nav} routineId={r.routineId} />;
       case 'weeklyReport': return <WeeklyReport nav={nav} />;
       case 'paywall': return <Paywall nav={nav} />;
+      case 'taskForm': return <TaskForm nav={nav} taskId={r.taskId} date={r.date} />;
       case 'today': return <Today nav={nav} />;
     }
   }
@@ -118,6 +123,7 @@ function Shell(): React.JSX.Element {
   function renderTab(): React.JSX.Element {
     switch (tab) {
       case 'today': return <Today nav={nav} />;
+      case 'tasks': return <Tasks nav={nav} />;
       case 'routines': return <RoutinesList nav={nav} />;
       case 'progress': return <Progress nav={nav} />;
       case 'settings': return <Settings nav={nav} />;
@@ -148,6 +154,9 @@ function Shell(): React.JSX.Element {
               </Pressable>
               <Pressable style={styles.plusItem} onPress={() => { setPlusOpen(false); nav.push({ name: 'routineForm' }); }}>
                 <Text style={styles.plusItemText}>+ New routine</Text>
+              </Pressable>
+              <Pressable style={styles.plusItem} onPress={() => { setPlusOpen(false); nav.push({ name: 'taskForm' }); }}>
+                <Text style={styles.plusItemText}>+ New task</Text>
               </Pressable>
               <Pressable style={styles.plusItem} onPress={() => setPlusOpen(false)}>
                 <Text style={styles.plusItemText}>Cancel</Text>

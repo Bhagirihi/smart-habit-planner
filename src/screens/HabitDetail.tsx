@@ -87,6 +87,34 @@ export default function HabitDetail({ nav, habitId }: { nav: Nav; habitId: strin
         ))}
       </Card>
 
+      {habit.type === 'measurable' ? (
+        <>
+          <SectionTitle>Value grid — last 4 weeks</SectionTitle>
+          <Card>
+            {[0, 1, 2, 3].map((w) => {
+              const weekDays = lastNDays(today, 28).slice(w * 7, w * 7 + 7);
+              const total = weekDays.reduce((sum, d) => sum + (state.checkIns[`${habit.id}|${d}`] ?? 0), 0);
+              return (
+                <View key={w} style={{ marginBottom: 10 }}>
+                  <View style={{ flexDirection: 'row', gap: 4 }}>
+                    {weekDays.map((d) => {
+                      const v = state.checkIns[`${habit.id}|${d}`];
+                      return (
+                        <View key={d} style={{ flex: 1, minHeight: 44, borderRadius: 8, borderWidth: 1, borderColor: c.border, backgroundColor: v ? habit.color : c.surface2, alignItems: 'center', justifyContent: 'center' }}>
+                          <Text style={{ color: v ? '#fff' : c.ink, fontWeight: '700' }}>{v ?? 0}</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                  <Text style={styles.meta}>Week total: {total} {habit.unit} · {formatDayLabel(weekDays[0])} to {formatDayLabel(weekDays[6])}</Text>
+                </View>
+              );
+            })}
+            <Text style={styles.legend}>Each cell is one day's logged amount. Empty days count as 0 in the weekly total.</Text>
+          </Card>
+        </>
+      ) : null}
+
       <SectionTitle>Last 3 months</SectionTitle>
       <Card>
         <View style={styles.grid}>

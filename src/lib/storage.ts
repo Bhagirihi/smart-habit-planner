@@ -8,13 +8,15 @@ export const defaultState: AppState = {
   habits: [],
   routines: [],
   checkIns: {},
+  tasks: [],
+  subtasks: [],
   settings: {
     goal: '',
     wakeTime: '07:00',
     notificationsEnabled: false,
     eveningReviewTime: '21:00',
     premiumDemo: false,
-    themeMode: 'light',
+    themeMode: 'dark',
   },
 };
 

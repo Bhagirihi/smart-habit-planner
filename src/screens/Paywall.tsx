@@ -38,6 +38,8 @@ const PREMIUM_ROWS = [
   { label: 'Unlimited routines', detail: 'No 1-routine cap' },
   { label: 'Weekly suggestions with Apply', detail: 'One-tap fixes every Sunday' },
   { label: 'Advanced charts and heatmaps', detail: 'Trends beyond the basic calendar' },
+  { label: 'Task repeats', detail: 'Daily and Weekly repeats on tasks (Never is free)' },
+  { label: 'Import Calendar', detail: 'Bring timed entries into Plan day (coming soon, Premium only)' },
 ];
 
 export default function Paywall({ nav }: { nav: Nav }): React.JSX.Element {

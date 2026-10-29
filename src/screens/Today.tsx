@@ -237,6 +237,21 @@ export default function Today({ nav }: { nav: Nav }): React.JSX.Element {
       )}
 
       <Card>
+        <Text style={styles.cardTitle}>Today's tasks</Text>
+        {(state.tasks ?? []).filter((t) => t.date === today).length === 0 ? (
+          <Text style={styles.cardBody}>No tasks for today yet. Tasks live next to habits, with sub-tasks and a Timeline view.</Text>
+        ) : (
+          (state.tasks ?? []).filter((t) => t.date === today).slice(0, 5).map((t) => (
+            <Pressable key={t.id} onPress={() => nav.goTab('tasks')} style={{ flexDirection: 'row', gap: 10, alignItems: 'center', paddingVertical: 6 }}>
+              <Text style={{ fontSize: 15, color: c.ink }}>{t.done ? '✓' : '○'} {t.title}</Text>
+              <Text style={{ fontSize: 13, color: c.muted }}>{t.time ? ` · ${t.time}` : ''}</Text>
+            </Pressable>
+          ))
+        )}
+        <GhostButton label="View tasks" onPress={() => nav.goTab('tasks')} />
+      </Card>
+
+      <Card>
         <Text style={styles.cardTitle}>Weekly report</Text>
         <Text style={styles.cardBody}>Every Sunday, see what worked and get 1 to 3 small changes to try next week.</Text>
         <GhostButton label="View weekly report" onPress={() => nav.push({ name: 'weeklyReport' })} />
