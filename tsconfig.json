@@ -1,0 +1,1 @@
+{"compilerOptions":{"allowImportingTsExtensions":true,"noEmit":true,"strict":true},"exclude":["node_modules"],"extends":"expo/tsconfig.base","include":["**/*.ts","**/*.tsx",".expo/types/**/*.ts","expo-env.d.ts"]}
