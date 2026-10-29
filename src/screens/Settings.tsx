@@ -4,6 +4,7 @@ import { useStore } from '../store';
 import { spacing, type, type Palette } from '../theme';
 import { useTheme } from '../useTheme';
 import { Card, Chip, GhostButton, PrimaryButton } from '../components/ui';
+import ProBadge from '../components/ProBadge';
 import type { Nav } from '../navigation';
 import { requestNotificationPermission } from '../lib/notifications';
 
@@ -92,7 +93,10 @@ export default function Settings({ nav }: { nav: Nav }): React.JSX.Element {
       </Card>
 
       <Card>
-        <Text style={styles.cardTitle}>Premium</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={styles.cardTitle}>Premium</Text>
+          <ProBadge />
+        </View>
         <Text style={styles.body}>{isPremium ? 'Premium preview is ON (demo switch below).' : 'You are on the Free plan.'}</Text>
         <GhostButton label="See Premium plans" onPress={() => nav.openPaywall()} />
         <View style={{ height: 10 }} />

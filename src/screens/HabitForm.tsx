@@ -4,6 +4,7 @@ import { useStore } from '../store';
 import { HABIT_COLORS, spacing, type, type Palette } from '../theme';
 import { useTheme } from '../useTheme';
 import { Card, Chip, GhostButton, PrimaryButton } from '../components/ui';
+import ProBadge from '../components/ProBadge';
 import type { Frequency, Habit, HabitType, TimeSlot } from '../types';
 import { FREE_HABIT_LIMIT } from '../types';
 import type { Nav } from '../navigation';
@@ -109,6 +110,14 @@ export default function HabitForm({ nav, habitId }: { nav: Nav; habitId?: string
   return (
     <ScrollView contentContainerStyle={styles.wrap}>
       <Text style={styles.hero}>{existing ? 'Edit habit' : 'New habit'}</Text>
+      {!existing && !isPremium && state.habits.length >= FREE_HABIT_LIMIT ? (
+        <Card>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <ProBadge />
+            <Text style={styles.help}>You are at the free limit of {FREE_HABIT_LIMIT} habits. Unlimited habits are a Premium feature — saving a 6th habit opens the paywall.</Text>
+          </View>
+        </Card>
+      ) : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {!existing ? (
         <>
