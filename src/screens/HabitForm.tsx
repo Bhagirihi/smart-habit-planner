@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useStore } from '../store';
-import { colors, HABIT_COLORS, spacing, type } from '../theme';
+import { HABIT_COLORS, spacing, type, type Palette } from '../theme';
+import { useTheme } from '../useTheme';
 import { Card, Chip, GhostButton, PrimaryButton } from '../components/ui';
 import type { Frequency, Habit, HabitType, TimeSlot } from '../types';
 import { FREE_HABIT_LIMIT } from '../types';
@@ -12,7 +13,37 @@ import { todayKey } from '../lib/dates';
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const TIMES = ['06:00', '07:00', '08:00', '09:00', '12:00', '16:00', '18:00', '19:00', '20:00', '21:00'];
 
+/** Popular preset library: tapping one fills the form (new habits only). */
+const PRESETS: { name: string; color: string; type: HabitType; target: number; unit: string; slot: TimeSlot; reminderTime: string }[] = [
+  { name: 'Drink Water', color: HABIT_COLORS[7], type: 'measurable', target: 8, unit: 'glasses', slot: 'morning', reminderTime: '09:00' },
+  { name: 'Morning Walk', color: HABIT_COLORS[5], type: 'do', target: 1, unit: '', slot: 'morning', reminderTime: '07:00' },
+  { name: 'Read', color: HABIT_COLORS[1], type: 'measurable', target: 10, unit: 'pages', slot: 'evening', reminderTime: '20:00' },
+  { name: 'Meditate', color: HABIT_COLORS[2], type: 'do', target: 1, unit: '', slot: 'morning', reminderTime: '07:00' },
+  { name: 'Workout', color: HABIT_COLORS[4], type: 'do', target: 1, unit: '', slot: 'morning', reminderTime: '07:30' },
+  { name: 'Journal', color: HABIT_COLORS[3], type: 'do', target: 1, unit: '', slot: 'evening', reminderTime: '21:00' },
+  { name: 'No Sugar', color: HABIT_COLORS[6], type: 'avoid', target: 1, unit: '', slot: 'morning', reminderTime: '08:00' },
+  { name: 'Sleep Early', color: HABIT_COLORS[0], type: 'do', target: 1, unit: '', slot: 'evening', reminderTime: '22:00' },
+];
+
+function makeStyles(c: Palette) {
+  return StyleSheet.create({
+    wrap: { flexGrow: 1, padding: spacing.lg, gap: 10, backgroundColor: c.bg },
+    hero: { fontSize: type.title, fontWeight: '800', color: c.ink },
+    label: { fontSize: type.body, fontWeight: '700', color: c.ink, marginTop: 8 },
+    input: { borderWidth: 1, borderColor: c.border, borderRadius: 12, minHeight: 52, paddingHorizontal: 12, fontSize: type.body, backgroundColor: c.surface, color: c.ink },
+    chips: { flexDirection: 'row', flexWrap: 'wrap' },
+    colorRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+    colorDot: { width: 44, height: 44, borderRadius: 22, color: '#fff', textAlign: 'center', lineHeight: 44, fontWeight: '800', overflow: 'hidden' },
+    colorSelected: { borderWidth: 3, borderColor: c.ink },
+    row: { flexDirection: 'row', gap: 10 },
+    help: { fontSize: type.body, color: c.muted, lineHeight: 22 },
+    error: { fontSize: type.body, color: c.red, fontWeight: '700' },
+  });
+}
+
 export default function HabitForm({ nav, habitId }: { nav: Nav; habitId?: string }): React.JSX.Element {
+  const c = useTheme();
+  const styles = useMemo(() => makeStyles(c), [c]);
   const { state, addHabit, updateHabit, isPremium } = useStore();
   const existing = habitId ? state.habits.find((h) => h.id === habitId) : undefined;
 
@@ -64,12 +95,35 @@ export default function HabitForm({ nav, habitId }: { nav: Nav; habitId?: string
     nav.pop();
   }
 
+  function applyPreset(p: (typeof PRESETS)[number]) {
+    setName(p.name);
+    setColor(p.color);
+    setHabitType(p.type);
+    setTarget(String(p.target));
+    setUnit(p.unit);
+    setSlot(p.slot);
+    setReminderTime(p.reminderTime);
+    setReminderOn(true);
+  }
+
   return (
     <ScrollView contentContainerStyle={styles.wrap}>
       <Text style={styles.hero}>{existing ? 'Edit habit' : 'New habit'}</Text>
       {error ? <Text style={styles.error}>{error}</Text> : null}
+      {!existing ? (
+        <>
+          <Text style={styles.label}>Popular presets — tap one to fill the form</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={styles.chips}>
+              {PRESETS.map((p) => (
+                <Chip key={p.name} label={p.name} selected={name === p.name} onPress={() => applyPreset(p)} />
+              ))}
+            </View>
+          </ScrollView>
+        </>
+      ) : null}
       <Text style={styles.label}>Name</Text>
-      <TextInput style={styles.input} placeholder="e.g. Morning Walk" value={name} onChangeText={setName} maxLength={60} />
+      <TextInput style={styles.input} placeholder="e.g. Morning Walk" placeholderTextColor={c.muted} value={name} onChangeText={setName} maxLength={60} />
 
       <Text style={styles.label}>Colour</Text>
       <View style={styles.colorRow}>
@@ -90,8 +144,8 @@ export default function HabitForm({ nav, habitId }: { nav: Nav; habitId?: string
         <>
           <Text style={styles.label}>Daily target</Text>
           <View style={styles.row}>
-            <TextInput style={[styles.input, { flex: 1 }]} keyboardType="numeric" value={target} onChangeText={setTarget} placeholder="8" />
-            <TextInput style={[styles.input, { flex: 1 }]} value={unit} onChangeText={setUnit} placeholder="Unit, e.g. glasses" maxLength={20} />
+            <TextInput style={[styles.input, { flex: 1 }]} keyboardType="numeric" value={target} onChangeText={setTarget} placeholder="8" placeholderTextColor={c.muted} />
+            <TextInput style={[styles.input, { flex: 1 }]} value={unit} onChangeText={setUnit} placeholder="Unit, e.g. glasses" placeholderTextColor={c.muted} maxLength={20} />
           </View>
         </>
       ) : null}
@@ -148,16 +202,4 @@ export default function HabitForm({ nav, habitId }: { nav: Nav; habitId?: string
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: { flexGrow: 1, padding: spacing.lg, gap: 10, backgroundColor: colors.bg },
-  hero: { fontSize: type.title, fontWeight: '800', color: colors.ink },
-  label: { fontSize: type.body, fontWeight: '700', color: colors.ink, marginTop: 8 },
-  input: { borderWidth: 1, borderColor: colors.border, borderRadius: 12, minHeight: 52, paddingHorizontal: 12, fontSize: type.body, backgroundColor: colors.surface },
-  chips: { flexDirection: 'row', flexWrap: 'wrap' },
-  colorRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  colorDot: { width: 44, height: 44, borderRadius: 22, color: '#fff', textAlign: 'center', lineHeight: 44, fontWeight: '800', overflow: 'hidden' },
-  colorSelected: { borderWidth: 3, borderColor: colors.ink },
-  row: { flexDirection: 'row', gap: 10 },
-  help: { fontSize: type.body, color: colors.muted, lineHeight: 22 },
-  error: { fontSize: type.body, color: colors.red, fontWeight: '700' },
-});
+

@@ -14,6 +14,7 @@ export const defaultState: AppState = {
     notificationsEnabled: false,
     eveningReviewTime: '21:00',
     premiumDemo: false,
+    themeMode: 'light',
   },
 };
 

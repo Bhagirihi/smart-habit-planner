@@ -55,3 +55,28 @@ Warm, calm, editorial — not playful, not clinical.
   widths for content, `SafeAreaProvider` + `SafeAreaView` on every screen,
   scrollable forms so small 360px-wide phones and large-font settings do not
   clip content, and every interactive element at least 48dp tall.
+
+## Redesign update (29 Oct 2026, look and feel only)
+
+Reference apps supplied by the user (Play Store descriptions only; no
+assets, logos, screenshots, or text copied from any of them):
+
+- **HabitTick** — minimalist checklist, visual calendar and streak grid,
+  yes/no habits, a clean time-based day planner, themes and colours.
+  Borrowed: colourful per-habit cards, a week strip on Today, and a
+  preset habit library on the Add Habit screen.
+- **TickOff (Vinztech)** — two home screens, Streak View and List View,
+  plus light and dark mode. Borrowed: the List / Streak view toggle on
+  Today, and a real Light / Dark mode that switches every screen.
+- **Tick It (Habit Diary)** — a preset library of popular habits,
+  challenge journeys, detailed statistics, and achievement medals.
+  Borrowed: presets, and an achievements strip (First Step, 7-Day,
+  30-Day, 100-Day) computed from existing check-ins.
+
+What changed in the theme: teal identity kept, with a distinct colour
+per habit (teal, blue, violet, pink, orange, green, red, cyan), gradient
+heroes (teal to violet) on Today, Onboarding, Splash, and Paywall, and
+gradient primary buttons. Dark mode is a separate readable palette
+(dark slate surfaces, bright teal/violet/amber accents), not an
+inversion. No pet, shop, feed, social, or cloud sync was added, and no
+streak, paywall-gate, or data logic was changed.

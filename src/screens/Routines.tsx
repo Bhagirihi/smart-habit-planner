@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useStore } from '../store';
-import { colors, spacing, type } from '../theme';
+import { spacing, type, type Palette } from '../theme';
+import { useTheme } from '../useTheme';
 import { Card, Chip, EmptyState, GhostButton, PrimaryButton } from '../components/ui';
 import { HabitRow } from '../components/HabitRow';
 import type { Nav } from '../navigation';
@@ -11,6 +12,8 @@ import { newId } from '../lib/seed';
 
 /** Routines list. Detail and form are separate routes handled below in the same file. */
 export function RoutinesList({ nav }: { nav: Nav }): React.JSX.Element {
+  const c = useTheme();
+  const styles = useMemo(() => makeStyles(c), [c]);
   const { state } = useStore();
   const today = todayKey();
   return (
@@ -30,7 +33,10 @@ export function RoutinesList({ nav }: { nav: Nav }): React.JSX.Element {
           const done = habits.filter((h) => state.checkIns[`${h.id}|${today}`] !== undefined).length;
           return (
             <Card key={r.id}>
-              <Text style={styles.cardTitle}>{r.name}</Text>
+              <View style={styles.titleRow}>
+                <View style={[styles.accentDot, { backgroundColor: habits[0]?.color ?? c.primary }]} />
+                <Text style={[styles.cardTitle, { flex: 1 }]}>{r.name}</Text>
+              </View>
               <Text style={styles.cardBody}>{formatTime12h(r.startTime)} · {habits.length} habits · {done} done today</Text>
               <View style={styles.btnRow}>
                 <PrimaryButton label="Open routine" onPress={() => nav.push({ name: 'routineDetail', routineId: r.id })} />
@@ -47,6 +53,8 @@ export function RoutinesList({ nav }: { nav: Nav }): React.JSX.Element {
 }
 
 export function RoutineDetail({ nav, routineId }: { nav: Nav; routineId: string }): React.JSX.Element {
+  const c = useTheme();
+  const styles = useMemo(() => makeStyles(c), [c]);
   const { state, toggleDone, deleteRoutine } = useStore();
   const routine = state.routines.find((r) => r.id === routineId);
   const [runIndex, setRunIndex] = useState<number | null>(null);
@@ -135,6 +143,8 @@ export function RoutineDetail({ nav, routineId }: { nav: Nav; routineId: string 
 }
 
 export function RoutineForm({ nav, routineId }: { nav: Nav; routineId?: string }): React.JSX.Element {
+  const c = useTheme();
+  const styles = useMemo(() => makeStyles(c), [c]);
   const { state, addRoutine, updateRoutine, isPremium } = useStore();
   const existing = routineId ? state.routines.find((r) => r.id === routineId) : undefined;
   const [name, setName] = useState(existing?.name ?? '');
@@ -173,7 +183,7 @@ export function RoutineForm({ nav, routineId }: { nav: Nav; routineId?: string }
       <Text style={styles.hero}>{existing ? 'Edit routine' : 'New routine'}</Text>
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <Text style={styles.label}>Routine name</Text>
-      <TextInput style={styles.input} placeholder="e.g. Morning Routine" value={name} onChangeText={setName} maxLength={60} />
+      <TextInput style={styles.input} placeholder="e.g. Morning Routine" placeholderTextColor={c.muted} value={name} onChangeText={setName} maxLength={60} />
       <Text style={styles.label}>Start time</Text>
       <View style={styles.chips}>
         {['06:00', '06:30', '07:00', '07:30', '08:00', '21:00'].map((t) => (
@@ -214,19 +224,23 @@ export function RoutineForm({ nav, routineId }: { nav: Nav; routineId?: string }
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: { flexGrow: 1, padding: spacing.lg, gap: 14, backgroundColor: colors.bg },
-  hero: { fontSize: type.title, fontWeight: '800', color: colors.ink },
-  body: { fontSize: type.body, color: colors.muted, lineHeight: 22 },
-  meta: { fontSize: type.small, color: colors.muted, fontWeight: '700' },
-  cardTitle: { fontSize: type.subtitle, fontWeight: '700', color: colors.ink },
-  cardBody: { fontSize: type.body, color: colors.muted, marginTop: 4 },
-  btnRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
-  list: { gap: 10 },
-  note: { fontSize: type.small, color: colors.muted, lineHeight: 19 },
-  label: { fontSize: type.body, fontWeight: '700', color: colors.ink, marginTop: 8 },
-  input: { borderWidth: 1, borderColor: colors.border, borderRadius: 12, minHeight: 52, paddingHorizontal: 12, fontSize: type.body, backgroundColor: colors.surface },
-  chips: { flexDirection: 'row', flexWrap: 'wrap' },
-  pickRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  error: { fontSize: type.body, color: colors.red, fontWeight: '700' },
-});
+function makeStyles(c: Palette) {
+  return StyleSheet.create({
+    wrap: { flexGrow: 1, padding: spacing.lg, gap: 14, backgroundColor: c.bg },
+    hero: { fontSize: type.title, fontWeight: '800', color: c.ink },
+    body: { fontSize: type.body, color: c.muted, lineHeight: 22 },
+    meta: { fontSize: type.small, color: c.muted, fontWeight: '700' },
+    titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    accentDot: { width: 14, height: 14, borderRadius: 7 },
+    cardTitle: { fontSize: type.subtitle, fontWeight: '700', color: c.ink },
+    cardBody: { fontSize: type.body, color: c.muted, marginTop: 4 },
+    btnRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
+    list: { gap: 10 },
+    note: { fontSize: type.small, color: c.muted, lineHeight: 19 },
+    label: { fontSize: type.body, fontWeight: '700', color: c.ink, marginTop: 8 },
+    input: { borderWidth: 1, borderColor: c.border, borderRadius: 12, minHeight: 52, paddingHorizontal: 12, fontSize: type.body, backgroundColor: c.surface, color: c.ink },
+    chips: { flexDirection: 'row', flexWrap: 'wrap' },
+    pickRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    error: { fontSize: type.body, color: c.red, fontWeight: '700' },
+  });
+}

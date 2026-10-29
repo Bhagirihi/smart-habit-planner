@@ -1,13 +1,16 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useStore } from '../store';
-import { colors, spacing, type } from '../theme';
+import { spacing, type, type Palette } from '../theme';
+import { useTheme } from '../useTheme';
 import { Card, EmptyState, GhostButton, PrimaryButton } from '../components/ui';
 import type { Nav } from '../navigation';
 import { formatDayLabel, isSundayKey, todayKey } from '../lib/dates';
 import { buildSuggestions, weekSummary } from '../lib/suggestions';
 
 export default function WeeklyReport({ nav }: { nav: Nav }): React.JSX.Element {
+  const c = useTheme();
+  const styles = useMemo(() => makeStyles(c), [c]);
   const { state, updateHabit, isPremium } = useStore();
   const today = todayKey();
   const [dismissed, setDismissed] = useState<string[]>([]);
@@ -82,17 +85,19 @@ export default function WeeklyReport({ nav }: { nav: Nav }): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: { flexGrow: 1, padding: spacing.lg, gap: 14, backgroundColor: colors.bg },
-  hero: { fontSize: type.title, fontWeight: '800', color: colors.ink },
-  body: { fontSize: type.body, color: colors.muted, lineHeight: 22 },
-  section: { fontSize: type.subtitle, fontWeight: '700', color: colors.ink },
-  stats: { flexDirection: 'row', gap: 10 },
-  stat: { flex: 1, alignItems: 'center', gap: 2 },
-  statNum: { fontSize: 24, fontWeight: '800', color: colors.ink },
-  statLabel: { fontSize: type.caption, color: colors.muted, textAlign: 'center' },
-  cardTitle: { fontSize: type.subtitle, fontWeight: '700', color: colors.ink },
-  cardBody: { fontSize: type.body, color: colors.muted, lineHeight: 22, marginVertical: 6 },
-  applied: { fontSize: type.body, color: colors.green, fontWeight: '700', marginTop: 6 },
-  btnRow: { gap: 8, marginTop: 6 },
-});
+function makeStyles(c: Palette) {
+  return StyleSheet.create({
+    wrap: { flexGrow: 1, padding: spacing.lg, gap: 14, backgroundColor: c.bg },
+    hero: { fontSize: type.title, fontWeight: '800', color: c.ink },
+    body: { fontSize: type.body, color: c.muted, lineHeight: 22 },
+    section: { fontSize: type.subtitle, fontWeight: '700', color: c.ink },
+    stats: { flexDirection: 'row', gap: 10 },
+    stat: { flex: 1, alignItems: 'center', gap: 2 },
+    statNum: { fontSize: 24, fontWeight: '800', color: c.ink },
+    statLabel: { fontSize: type.caption, color: c.muted, textAlign: 'center' },
+    cardTitle: { fontSize: type.subtitle, fontWeight: '700', color: c.ink },
+    cardBody: { fontSize: type.body, color: c.muted, lineHeight: 22, marginVertical: 6 },
+    applied: { fontSize: type.body, color: c.green, fontWeight: '700', marginTop: 6 },
+    btnRow: { gap: 8, marginTop: 6 },
+  });
+}

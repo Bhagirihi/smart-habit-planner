@@ -38,6 +38,7 @@ export interface Settings {
   notificationsEnabled: boolean;
   eveningReviewTime: string; // "21:00"
   premiumDemo: boolean; // demo-only preview switch in Settings; NOT a purchase
+  themeMode: 'light' | 'dark'; // appearance choice, stored in AsyncStorage, default 'light'
 }
 
 export interface AppState {

@@ -1,17 +1,38 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useStore } from '../store';
-import { colors, spacing, type } from '../theme';
+import { spacing, type, type Palette } from '../theme';
+import { useTheme } from '../useTheme';
 import { Card, GhostButton, PrimaryButton } from '../components/ui';
 import type { Nav } from '../navigation';
 
 const PLANS = [
-  { id: 'monthly', label: 'Monthly', price: '₹149 / month', note: 'Cancel any time' },
-  { id: 'yearly', label: 'Yearly — Best Value', price: '₹999 / year', note: 'About ₹83 / month' },
-  { id: 'lifetime', label: 'Lifetime', price: '₹1,999 once', note: 'Pay once, keep it forever' },
+  { id: 'monthly', label: 'Monthly', price: '₹149 / month', note: 'Cancel any time', accent: 'primary' as const },
+  { id: 'yearly', label: 'Yearly — Best Value', price: '₹999 / year', note: 'About ₹83 / month', accent: 'violet' as const },
+  { id: 'lifetime', label: 'Lifetime', price: '₹1,999 once', note: 'Pay once, keep it forever', accent: 'amber' as const },
 ];
 
+function makeStyles(c: Palette) {
+  return StyleSheet.create({
+    wrap: { flexGrow: 1, padding: spacing.lg, gap: 14, backgroundColor: c.bg },
+    heroCard: { borderRadius: 26, padding: spacing.lg, overflow: 'hidden', gap: 8 },
+    hero: { fontSize: type.display, fontWeight: '800', color: '#fff', lineHeight: 40 },
+    heroBody: { fontSize: type.body, color: '#E6F4F1', lineHeight: 22 },
+    body: { fontSize: type.body, color: c.muted, lineHeight: 22 },
+    cardTitle: { fontSize: type.subtitle, fontWeight: '700', color: c.ink },
+    bullet: { fontSize: type.body, color: c.ink, lineHeight: 24 },
+    premiumCard: { borderColor: c.primary, backgroundColor: c.primarySoft },
+    planLabel: { fontSize: type.subtitle, fontWeight: '700', color: c.ink },
+    planPrice: { fontSize: type.body, fontWeight: '800', marginTop: 4 },
+    planNote: { fontSize: type.small, color: c.muted, marginTop: 2, marginBottom: 8 },
+    note: { fontSize: type.small, color: c.muted, lineHeight: 19, textAlign: 'center' },
+  });
+}
+
 export default function Paywall({ nav }: { nav: Nav }): React.JSX.Element {
+  const c = useTheme();
+  const styles = useMemo(() => makeStyles(c), [c]);
   const { isPremium } = useStore();
   const [selected, setSelected] = useState('yearly');
 
@@ -30,10 +51,18 @@ export default function Paywall({ nav }: { nav: Nav }): React.JSX.Element {
     Alert.alert('Restore is not wired yet', 'TODO: connect RevenueCat restorePurchases here. Nothing has been restored in this v1 build.', [{ text: 'OK' }]);
   }
 
+  function planStyle(p: (typeof PLANS)[number]) {
+    const accent = p.accent === 'violet' ? c.violet : p.accent === 'amber' ? c.amber : c.primary;
+    const bg = p.accent === 'violet' ? c.violetSoft : p.accent === 'amber' ? c.amberSoft : c.primarySoft;
+    return { borderColor: accent, backgroundColor: bg, borderWidth: selected === p.id ? 3 : 1.5 };
+  }
+
   return (
     <ScrollView contentContainerStyle={styles.wrap}>
-      <Text style={styles.hero}>Go Premium</Text>
-      <Text style={styles.body}>Keep the free version forever, or unlock everything for serious streak builders.</Text>
+      <LinearGradient colors={[...c.gradient]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroCard}>
+        <Text style={styles.hero}>Go Premium</Text>
+        <Text style={styles.heroBody}>Keep the free version forever, or unlock everything for serious streak builders.</Text>
+      </LinearGradient>
 
       <Card>
         <Text style={styles.cardTitle}>Free</Text>
@@ -56,9 +85,9 @@ export default function Paywall({ nav }: { nav: Nav }): React.JSX.Element {
       ) : null}
 
       {PLANS.map((p) => (
-        <Card key={p.id} style={selected === p.id ? styles.selected : undefined}>
+        <Card key={p.id} style={planStyle(p)}>
           <Text style={styles.planLabel} onPress={() => setSelected(p.id)}>{p.label}</Text>
-          <Text style={styles.planPrice}>{p.price}</Text>
+          <Text style={[styles.planPrice, { color: p.accent === 'violet' ? c.violet : p.accent === 'amber' ? c.amber : c.primary }]}>{p.price}</Text>
           <Text style={styles.planNote}>{p.note}</Text>
           <GhostButton label={selected === p.id ? 'Selected' : 'Select'} onPress={() => setSelected(p.id)} />
         </Card>
@@ -71,17 +100,3 @@ export default function Paywall({ nav }: { nav: Nav }): React.JSX.Element {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  wrap: { flexGrow: 1, padding: spacing.lg, gap: 14, backgroundColor: colors.bg },
-  hero: { fontSize: type.title, fontWeight: '800', color: colors.ink },
-  body: { fontSize: type.body, color: colors.muted, lineHeight: 22 },
-  cardTitle: { fontSize: type.subtitle, fontWeight: '700', color: colors.ink },
-  bullet: { fontSize: type.body, color: colors.ink, lineHeight: 24 },
-  premiumCard: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
-  selected: { borderColor: colors.primary, borderWidth: 2 },
-  planLabel: { fontSize: type.subtitle, fontWeight: '700', color: colors.ink },
-  planPrice: { fontSize: type.body, fontWeight: '700', color: colors.primary, marginTop: 4 },
-  planNote: { fontSize: type.small, color: colors.muted, marginTop: 2, marginBottom: 8 },
-  note: { fontSize: type.small, color: colors.muted, lineHeight: 19, textAlign: 'center' },
-});

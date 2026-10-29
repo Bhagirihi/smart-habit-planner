@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useStore } from '../store';
-import { colors, spacing, type } from '../theme';
+import { spacing, type, type Palette } from '../theme';
+import { useTheme } from '../useTheme';
 import { Card, GhostButton, PrimaryButton, ProgressBar, SectionTitle } from '../components/ui';
 import { HabitAvatar } from '../components/HabitRow';
 import type { Nav } from '../navigation';
@@ -10,6 +11,8 @@ import { completionRate, computeBestStreak, computeStreak, dayStatus, isDone } f
 
 export default function HabitDetail({ nav, habitId }: { nav: Nav; habitId: string }): React.JSX.Element {
   const { state, toggleDone, addValue, deleteHabit, updateHabit, toggleSkip } = useStore();
+  const c = useTheme();
+  const styles = useMemo(() => makeStyles(c), [c]);
   const habit = state.habits.find((h) => h.id === habitId);
   const [amount, setAmount] = useState('');
   const today = todayKey();
@@ -60,9 +63,9 @@ export default function HabitDetail({ nav, habitId }: { nav: Nav; habitId: strin
         {habit.type === 'measurable' ? (
           <>
             <Text style={styles.cardBody}>Logged today: {current ?? 0} / {habit.target} {habit.unit}</Text>
-            <ProgressBar value={current === undefined ? 0 : Math.min(100, (current / habit.target) * 100)} />
+            <ProgressBar value={current === undefined ? 0 : Math.min(100, (current / habit.target) * 100)} color={habit.color} />
             <View style={styles.amountRow}>
-              <TextInput style={styles.input} keyboardType="numeric" placeholder="Amount" value={amount} onChangeText={setAmount} />
+              <TextInput style={styles.input} keyboardType="numeric" placeholder="Amount" placeholderTextColor={c.muted} value={amount} onChangeText={setAmount} />
               <PrimaryButton label="Log" onPress={() => { const v = Number(amount); if (Number.isFinite(v) && v > 0) { addValue(habit, today, (current ?? 0) + v); setAmount(''); } }} />
             </View>
           </>
@@ -89,7 +92,7 @@ export default function HabitDetail({ nav, habitId }: { nav: Nav; habitId: strin
         <View style={styles.grid}>
           {gridDays.map((d) => {
             const s = dayStatus(habit, d, state.checkIns, today);
-            const bg = s === 'done' ? habit.color : s === 'missed' ? colors.redSoft : s === 'skipped' ? colors.amberSoft : colors.surface2;
+            const bg = s === 'done' ? habit.color : s === 'missed' ? c.redSoft : s === 'skipped' ? c.amberSoft : c.surface2;
             return <View key={d} style={[styles.cell, { backgroundColor: bg }]} />;
           })}
         </View>
@@ -104,24 +107,26 @@ export default function HabitDetail({ nav, habitId }: { nav: Nav; habitId: strin
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: { flexGrow: 1, padding: spacing.lg, gap: 14, backgroundColor: colors.bg },
-  header: { flexDirection: 'row', gap: 14, alignItems: 'center' },
-  hero: { fontSize: type.title, fontWeight: '800', color: colors.ink },
-  meta: { fontSize: type.small, color: colors.muted, marginTop: 4, lineHeight: 19 },
-  stats: { flexDirection: 'row', gap: 10 },
-  stat: { flex: 1, alignItems: 'center', gap: 2 },
-  statNum: { fontSize: 26, fontWeight: '800', color: colors.ink },
-  statLabel: { fontSize: type.caption, color: colors.muted, textAlign: 'center' },
-  cardTitle: { fontSize: type.subtitle, fontWeight: '700', color: colors.ink, marginBottom: 6 },
-  cardBody: { fontSize: type.body, color: colors.muted, marginBottom: 8 },
-  amountRow: { flexDirection: 'row', gap: 10, marginTop: 10, alignItems: 'center' },
-  input: { flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: 12, minHeight: 48, paddingHorizontal: 12, fontSize: type.body, backgroundColor: colors.surface },
-  dayRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
-  dayLabel: { fontSize: type.body, color: colors.ink },
-  dayStatus: { fontSize: type.body, fontWeight: '600', color: colors.muted, textTransform: 'capitalize' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
-  cell: { width: 22, height: 22, borderRadius: 6, borderWidth: 1, borderColor: colors.border },
-  legend: { fontSize: type.small, color: colors.muted, marginTop: 10, lineHeight: 19 },
-  note: { fontSize: type.small, color: colors.muted, lineHeight: 19 },
-});
+function makeStyles(c: Palette) {
+  return StyleSheet.create({
+    wrap: { flexGrow: 1, padding: spacing.lg, gap: 14, backgroundColor: c.bg },
+    header: { flexDirection: 'row', gap: 14, alignItems: 'center' },
+    hero: { fontSize: type.title, fontWeight: '800', color: c.ink },
+    meta: { fontSize: type.small, color: c.muted, marginTop: 4, lineHeight: 19 },
+    stats: { flexDirection: 'row', gap: 10 },
+    stat: { flex: 1, alignItems: 'center', gap: 2 },
+    statNum: { fontSize: 26, fontWeight: '800', color: c.ink },
+    statLabel: { fontSize: type.caption, color: c.muted, textAlign: 'center' },
+    cardTitle: { fontSize: type.subtitle, fontWeight: '700', color: c.ink, marginBottom: 6 },
+    cardBody: { fontSize: type.body, color: c.muted, marginBottom: 8 },
+    amountRow: { flexDirection: 'row', gap: 10, marginTop: 10, alignItems: 'center' },
+    input: { flex: 1, borderWidth: 1, borderColor: c.border, borderRadius: 12, minHeight: 48, paddingHorizontal: 12, fontSize: type.body, backgroundColor: c.surface, color: c.ink },
+    dayRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.border },
+    dayLabel: { fontSize: type.body, color: c.ink },
+    dayStatus: { fontSize: type.body, fontWeight: '600', color: c.muted, textTransform: 'capitalize' },
+    grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+    cell: { width: 22, height: 22, borderRadius: 6, borderWidth: 1, borderColor: c.border },
+    legend: { fontSize: type.small, color: c.muted, marginTop: 10, lineHeight: 19 },
+    note: { fontSize: type.small, color: c.muted, lineHeight: 19 },
+  });
+}

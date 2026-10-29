@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useStore } from '../store';
-import { colors, spacing, type } from '../theme';
+import { spacing, type, type Palette } from '../theme';
+import { useTheme } from '../useTheme';
 import { Card, Chip, GhostButton, PrimaryButton } from '../components/ui';
 import { GOALS, newId, starterOptions, starterToHabit } from '../lib/seed';
 import { todayKey } from '../lib/dates';
@@ -9,7 +11,28 @@ import type { StarterOption } from '../lib/seed';
 
 const WAKE_TIMES = ['06:00', '06:30', '07:00', '07:30', '08:00'];
 
+function makeStyles(c: Palette) {
+  return StyleSheet.create({
+    wrap: { flexGrow: 1, padding: spacing.lg, gap: 14, backgroundColor: c.bg },
+    heroCard: { borderRadius: 26, padding: spacing.lg, overflow: 'hidden', gap: 8 },
+    hero: { fontSize: type.display, fontWeight: '800', color: '#fff', lineHeight: 40 },
+    heroPlain: { fontSize: type.display, fontWeight: '800', color: c.ink, lineHeight: 40 },
+    heroBody: { fontSize: type.body, color: '#E6F4F1', lineHeight: 22 },
+    body: { fontSize: type.body, color: c.muted, lineHeight: 22 },
+    cardTitle: { fontSize: type.subtitle, fontWeight: '700', color: c.ink, marginBottom: 6 },
+    bullet: { fontSize: type.body, color: c.ink, lineHeight: 24 },
+    chips: { flexDirection: 'row', flexWrap: 'wrap' },
+    label: { fontSize: type.body, fontWeight: '700', color: c.ink, marginTop: 6 },
+    optRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    dot: { width: 40, height: 40, borderRadius: 20 },
+    optName: { fontSize: type.body, fontWeight: '700', color: c.ink },
+    optMeta: { fontSize: type.small, color: c.muted },
+  });
+}
+
 export default function Onboarding(): React.JSX.Element {
+  const c = useTheme();
+  const styles = useMemo(() => makeStyles(c), [c]);
   const { completeOnboarding } = useStore();
   const [step, setStep] = useState(0);
   const [goal, setGoal] = useState(GOALS[0]);
@@ -28,8 +51,10 @@ export default function Onboarding(): React.JSX.Element {
     <ScrollView contentContainerStyle={styles.wrap}>
       {step === 0 ? (
         <>
-          <Text style={styles.hero}>Build small habits,{'\n'}keep the streak alive.</Text>
-          <Text style={styles.body}>Pick a goal, tick off one small list each day, and watch your streak grow. No account needed to start.</Text>
+          <LinearGradient colors={[...c.gradient]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroCard}>
+            <Text style={styles.hero}>Build small habits,{'\n'}keep the streak alive.</Text>
+            <Text style={styles.heroBody}>Pick a goal, tick off one small list each day, and watch your streak grow. No account needed to start.</Text>
+          </LinearGradient>
           <Card>
             <Text style={styles.cardTitle}>What you get</Text>
             <Text style={styles.bullet}>• A simple Today list, grouped by morning, afternoon and evening</Text>
@@ -41,7 +66,7 @@ export default function Onboarding(): React.JSX.Element {
         </>
       ) : step === 1 ? (
         <>
-          <Text style={styles.hero}>What do you want to improve?</Text>
+          <Text style={styles.heroPlain}>What do you want to improve?</Text>
           <Text style={styles.body}>Pick one goal. You can change your habits later, nothing here is locked in.</Text>
           <View style={styles.chips}>
             {GOALS.map((g) => (
@@ -59,7 +84,7 @@ export default function Onboarding(): React.JSX.Element {
         </>
       ) : (
         <>
-          <Text style={styles.hero}>Pick 2 or 3 to start with</Text>
+          <Text style={styles.heroPlain}>Pick 2 or 3 to start with</Text>
           <Text style={styles.body}>Starting small beats starting big. You can add more habits any time from the + button.</Text>
           {options.map((o) => {
             const on = picked.some((p) => p.name === o.name);
@@ -83,17 +108,3 @@ export default function Onboarding(): React.JSX.Element {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  wrap: { flexGrow: 1, padding: spacing.lg, gap: 14, backgroundColor: colors.bg },
-  hero: { fontSize: type.hero, fontWeight: '800', color: colors.ink, lineHeight: 38 },
-  body: { fontSize: type.body, color: colors.muted, lineHeight: 22 },
-  cardTitle: { fontSize: type.subtitle, fontWeight: '700', color: colors.ink, marginBottom: 6 },
-  bullet: { fontSize: type.body, color: colors.ink, lineHeight: 24 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap' },
-  label: { fontSize: type.body, fontWeight: '700', color: colors.ink, marginTop: 6 },
-  optRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  dot: { width: 40, height: 40, borderRadius: 20 },
-  optName: { fontSize: type.body, fontWeight: '700', color: colors.ink },
-  optMeta: { fontSize: type.small, color: colors.muted },
-});

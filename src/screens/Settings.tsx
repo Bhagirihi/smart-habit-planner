@@ -1,14 +1,29 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useStore } from '../store';
-import { colors, spacing, type } from '../theme';
+import { spacing, type, type Palette } from '../theme';
+import { useTheme } from '../useTheme';
 import { Card, Chip, GhostButton, PrimaryButton } from '../components/ui';
 import type { Nav } from '../navigation';
 import { requestNotificationPermission } from '../lib/notifications';
 
 const REVIEW_TIMES = ['19:00', '20:00', '21:00', '22:00'];
 
+function makeStyles(c: Palette) {
+  return StyleSheet.create({
+    wrap: { flexGrow: 1, padding: spacing.lg, gap: 14, backgroundColor: c.bg },
+    hero: { fontSize: type.title, fontWeight: '800', color: c.ink },
+    cardTitle: { fontSize: type.subtitle, fontWeight: '700', color: c.ink },
+    body: { fontSize: type.body, color: c.muted, lineHeight: 22, marginVertical: 4 },
+    label: { fontSize: type.body, fontWeight: '700', color: c.ink, marginTop: 10 },
+    chips: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 },
+    danger: { borderColor: c.red },
+  });
+}
+
 export default function Settings({ nav }: { nav: Nav }): React.JSX.Element {
+  const c = useTheme();
+  const styles = useMemo(() => makeStyles(c), [c]);
   const { state, updateSettings, resetAll, isPremium } = useStore();
   const [confirmStep, setConfirmStep] = useState(0);
 
@@ -44,6 +59,15 @@ export default function Settings({ nav }: { nav: Nav }): React.JSX.Element {
   return (
     <ScrollView contentContainerStyle={styles.wrap}>
       <Text style={styles.hero}>Settings</Text>
+
+      <Card>
+        <Text style={styles.cardTitle}>Appearance</Text>
+        <Text style={styles.body}>Light is bright and colourful. Dark is easy on the eyes at night. The choice is saved on this phone.</Text>
+        <View style={styles.chips}>
+          <Chip label="Light" selected={state.settings.themeMode !== 'dark'} onPress={() => updateSettings({ themeMode: 'light' })} />
+          <Chip label="Dark" selected={state.settings.themeMode === 'dark'} onPress={() => updateSettings({ themeMode: 'dark' })} />
+        </View>
+      </Card>
 
       <Card>
         <Text style={styles.cardTitle}>Notifications</Text>
@@ -94,13 +118,3 @@ export default function Settings({ nav }: { nav: Nav }): React.JSX.Element {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  wrap: { flexGrow: 1, padding: spacing.lg, gap: 14, backgroundColor: colors.bg },
-  hero: { fontSize: type.title, fontWeight: '800', color: colors.ink },
-  cardTitle: { fontSize: type.subtitle, fontWeight: '700', color: colors.ink },
-  body: { fontSize: type.body, color: colors.muted, lineHeight: 22, marginVertical: 4 },
-  label: { fontSize: type.body, fontWeight: '700', color: colors.ink, marginTop: 10 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 },
-  danger: { borderColor: colors.red },
-});

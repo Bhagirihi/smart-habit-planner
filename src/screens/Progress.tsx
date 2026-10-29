@@ -1,14 +1,40 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useStore } from '../store';
-import { colors, spacing, type } from '../theme';
+import { spacing, type, type Palette } from '../theme';
+import { useTheme } from '../useTheme';
 import { Card, EmptyState, GhostButton, SectionTitle } from '../components/ui';
 import { Heatmap, WeekBars } from '../components/Charts';
 import type { Nav } from '../navigation';
 import { todayKey } from '../lib/dates';
 import { completionRate, computeBestStreak, computeStreak } from '../lib/streaks';
 
+function makeStyles(c: Palette) {
+  return StyleSheet.create({
+    wrap: { flexGrow: 1, padding: spacing.lg, gap: 14, backgroundColor: c.bg },
+    hero: { fontSize: type.title, fontWeight: '800', color: c.ink },
+    cardTitle: { fontSize: type.subtitle, fontWeight: '700', color: c.ink },
+    cardBody: { fontSize: type.body, color: c.muted, lineHeight: 22, marginVertical: 6 },
+    legend: { fontSize: type.small, color: c.muted, marginTop: 10 },
+    medalsRow: { flexDirection: 'row', gap: 10 },
+    medal: { flex: 1, alignItems: 'center', gap: 4, paddingVertical: 10 },
+    medalCircle: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+    medalMark: { fontSize: 20, fontWeight: '800', color: '#fff' },
+    medalLabel: { fontSize: type.caption, fontWeight: '700', color: c.ink, textAlign: 'center' },
+    medalSub: { fontSize: type.caption, color: c.muted, textAlign: 'center' },
+  });
+}
+
+const MEDALS = [
+  { id: 'first', label: 'First Step', sub: '1-day best', needed: 1 },
+  { id: 'week', label: '7-Day', sub: '7-day best', needed: 7 },
+  { id: 'month', label: '30-Day', sub: '30-day best', needed: 30 },
+  { id: 'century', label: '100-Day', sub: '100-day best', needed: 100 },
+];
+
 export default function Progress({ nav }: { nav: Nav }): React.JSX.Element {
+  const c = useTheme();
+  const styles = useMemo(() => makeStyles(c), [c]);
   const { state, isPremium } = useStore();
   const today = todayKey();
 
@@ -24,10 +50,30 @@ export default function Progress({ nav }: { nav: Nav }): React.JSX.Element {
   const ranked = [...state.habits]
     .map((h) => ({ habit: h, rate: completionRate(h, state.checkIns, today, 30) ?? 0, streak: computeStreak(h, state.checkIns, today), best: computeBestStreak(h, state.checkIns, today) }))
     .sort((a, b) => a.rate - b.rate);
+  const maxBest = Math.max(0, ...ranked.map((r) => r.best));
 
   return (
     <ScrollView contentContainerStyle={styles.wrap}>
       <Text style={styles.hero}>Progress</Text>
+
+      <SectionTitle>Achievements</SectionTitle>
+      <Card>
+        <View style={styles.medalsRow}>
+          {MEDALS.map((m) => {
+            const earned = maxBest >= m.needed;
+            return (
+              <View key={m.id} style={styles.medal}>
+                <View style={[styles.medalCircle, { backgroundColor: earned ? c.amber : c.surface2 }]}>
+                  <Text style={[styles.medalMark, { color: earned ? '#fff' : c.muted }]}>{earned ? '✓' : '·'}</Text>
+                </View>
+                <Text style={styles.medalLabel}>{m.label}</Text>
+                <Text style={styles.medalSub}>{earned ? 'Earned' : m.sub}</Text>
+              </View>
+            );
+          })}
+        </View>
+      </Card>
+
       <Card>
         <Text style={styles.cardTitle}>Weekly report</Text>
         <Text style={styles.cardBody}>Your Sunday summary and 1 to 3 small changes for next week.</Text>
@@ -64,11 +110,3 @@ export default function Progress({ nav }: { nav: Nav }): React.JSX.Element {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  wrap: { flexGrow: 1, padding: spacing.lg, gap: 14, backgroundColor: colors.bg },
-  hero: { fontSize: type.title, fontWeight: '800', color: colors.ink },
-  cardTitle: { fontSize: type.subtitle, fontWeight: '700', color: colors.ink },
-  cardBody: { fontSize: type.body, color: colors.muted, lineHeight: 22, marginVertical: 6 },
-  legend: { fontSize: type.small, color: colors.muted, marginTop: 10 },
-});
