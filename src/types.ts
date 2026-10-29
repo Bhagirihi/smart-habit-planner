@@ -12,6 +12,7 @@ export interface Habit {
   target: number; unit: string; frequency: FrequencyType; weekdays: number[];
   weeklyTarget: number; timeSlot: TimeSlot; startDate: string; skipDays: string[];
   reminderEnabled: boolean; reminderTime: string | null;
+  notificationId: string | null;
   createdAt: number; updatedAt: number; paused: boolean; archived: boolean;
 }
 export interface Completion {

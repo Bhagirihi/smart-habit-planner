@@ -1,11 +1,11 @@
-import React, { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
 import { StoreProvider, useStore } from './src/store';
-import { TAB_ROUTES, type Nav, type Route, type TabName } from './src/navigation';
+import { resolveBackAction, TAB_ROUTES, type Nav, type Route, type TabName } from './src/navigation';
 import { c, radius, spacing, type } from './src/theme';
 import Splash from './src/screens/Splash';
 import OnboardingWelcome from './src/screens/OnboardingWelcome';
@@ -21,6 +21,7 @@ import Progress from './src/screens/Progress';
 import { Paywall } from './src/screens/Paywall';
 import WeeklyReport from './src/screens/WeeklyReport';
 import { Settings } from './src/screens/Settings';
+import { HelpScreen, PrivacyScreen, TermsScreen } from './src/screens/Legal';
 
 const TABS: { key: TabName; label: string }[] = [
   { key: 'today', label: 'Today' }, { key: 'routines', label: 'Routines' },
@@ -31,14 +32,32 @@ function Shell() {
   const { ready, prefs } = useStore();
   const [stack, setStack] = useState<Route[]>([{ name: 'splash' }]);
   const [showSheet, setShowSheet] = useState(false);
+  // Paywall is an OVERLAY, not a stack screen: opening it must not unmount
+  // the form underneath, so a new habit/routine draft survives open + close
+  // with its input intact. The stack below is left untouched while open.
+  const [paywallOpen, setPaywallOpen] = useState(false);
   const route = stack[stack.length - 1] ?? { name: 'splash' as const };
   const nav: Nav = useMemo(() => ({
     route,
     push: (r) => setStack((s) => [...s, r]),
     back: () => setStack((s) => (s.length > 1 ? s.slice(0, -1) : s)),
     goTab: (t) => setStack([TAB_ROUTES[t]]),
-    openPaywall: (from) => setStack((s) => [...s, { name: 'paywall', from: from ?? s[s.length - 1] }]),
+    openPaywall: () => setPaywallOpen(true),
+    closePaywall: () => setPaywallOpen(false),
   }), [route]);
+  // Android hardware back: sheet first, then paywall overlay, then stack pop;
+  // only at a root tab screen does the event fall through and exit the app.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      const action = resolveBackAction({ sheetOpen: showSheet, paywallOpen, stackDepth: stack.length });
+      if (action === 'close-sheet') setShowSheet(false);
+      else if (action === 'close-paywall') setPaywallOpen(false);
+      else if (action === 'pop') setStack((s) => (s.length > 1 ? s.slice(0, -1) : s));
+      else return false;
+      return true;
+    });
+    return () => sub.remove();
+  }, [showSheet, paywallOpen, stack.length]);
   const currentTab: TabName | null =
     route.name === 'today' ? 'today' : route.name === 'routines' ? 'routines' : route.name === 'progress' ? 'progress' : route.name === 'settings' ? 'settings' : null;
   // Decide the effective screen: before ready -> splash; after ready, if onboarding
@@ -46,11 +65,9 @@ function Shell() {
   const onboardingScreens = route.name === 'welcome' || route.name === 'goal' || route.name === 'starter';
   const effective: Route = !ready
     ? { name: 'splash' }
-    : !prefs.onboardingComplete && !onboardingScreens && currentTab === null && route.name !== 'paywall'
+    : !prefs.onboardingComplete && !onboardingScreens
       ? { name: 'welcome' }
-      : !prefs.onboardingComplete && !onboardingScreens && currentTab !== null
-        ? { name: 'welcome' }
-        : route;
+      : route;
   const screenNav: Nav = { ...nav, route: effective };
   const renderScreen = (r: Route) => {
     switch (r.name) {
@@ -68,6 +85,9 @@ function Shell() {
       case 'paywall': return <Paywall nav={screenNav} />;
       case 'weeklyReport': return <WeeklyReport nav={screenNav} />;
       case 'settings': return <Settings nav={screenNav} />;
+      case 'terms': return <TermsScreen nav={screenNav} />;
+      case 'privacy': return <PrivacyScreen nav={screenNav} />;
+      case 'help': return <HelpScreen nav={screenNav} />;
       default: return <Today nav={screenNav} />;
     }
   };
@@ -105,6 +125,11 @@ function Shell() {
           </View>
         </View>
       ) : null}
+      {paywallOpen ? (
+        <View style={s.paywallOverlay}>
+          <Paywall nav={screenNav} />
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -131,4 +156,5 @@ const s = StyleSheet.create({
   sheet: { backgroundColor: c.surface, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.sm },
   sheetBtn: { minHeight: 48, justifyContent: 'center' },
   sheetText: { fontSize: type.label, fontWeight: '600', color: c.ink },
+  paywallOverlay: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: c.bg },
 });

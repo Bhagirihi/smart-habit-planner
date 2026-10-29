@@ -131,6 +131,7 @@ export default function Today({ nav }: { nav: Nav }) {
       <ScrollView contentContainerStyle={s.content}>
         <Text style={s.greeting}>{greeting()}{prefs.goal ? ` · ${prefs.goal}` : ''}</Text>
         <Text style={s.date}>{formatLongDate(selectedDate)}</Text>
+        {scheduled.length > 0 ? <Text style={s.encourage}>Keep going, you&apos;re doing great!</Text> : null}
         <ErrorBanner message={loadError} />
         {!isToday ? (
           <Card>
@@ -212,6 +213,7 @@ const s = StyleSheet.create({
   content: { padding: spacing.lg, gap: spacing.md },
   greeting: { fontSize: type.title, fontWeight: '600', color: c.ink },
   date: { fontSize: type.body, color: c.muted },
+  encourage: { fontSize: type.body, color: c.primary, lineHeight: 20 },
   note: { fontSize: type.body, color: c.muted, lineHeight: 20 },
   strip: { flexDirection: 'row', gap: spacing.sm, justifyContent: 'space-between' },
   day: { flex: 1, minHeight: 48, backgroundColor: c.surfaceAlt, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', gap: 2 },

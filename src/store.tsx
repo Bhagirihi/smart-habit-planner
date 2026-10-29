@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { todayKey, uid, weekStartKey } from './lib/dates';
 import * as db from './services/db';
-import { scheduleHabitReminder, cancelAllReminders } from './services/notifications';
+import { scheduleHabitReminder, cancelAllReminders, cancelReminder, resolveReminderAction } from './services/notifications';
 import { isPremium } from './services/subscription';
 import { generateSuggestions, previousWeekStats } from './services/suggestions';
 import type { Completion, Habit, NewHabitInput, Preferences, Routine, Suggestion, WeeklyReport } from './types';
@@ -12,8 +12,12 @@ export interface Store {
   prefs: Preferences; habits: Habit[]; completions: Completion[]; routines: Routine[];
   weeklyReport: WeeklyReport | null; isPremium: boolean;
   setPrefs: (p: Partial<Preferences>) => void;
-  addHabit: (input: NewHabitInput) => { ok: boolean; message?: string };
+  addHabit: (input: NewHabitInput) => { ok: boolean; message?: string; habit?: Habit };
   updateHabit: (h: Habit) => void; deleteHabit: (id: string) => void;
+  // Resolves (and, if needed, re-schedules) the reminder for a habit that
+  // was just saved. Returns the user-visible result; HabitForm surfaces a
+  // permission denial instead of silently dropping the reminder.
+  rescheduleReminder: (next: Habit, previous?: Habit | null) => Promise<{ ok: boolean; message: string }>;
   toggleDone: (habitId: string, date: string) => void;
   setMeasurableValue: (habitId: string, date: string, value: number) => void;
   setStatus: (habitId: string, date: string, status: Completion['status']) => void;
@@ -93,13 +97,32 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const active = habits.filter((h) => !h.archived).length;
       if (!isPremium() && active >= FREE_HABIT_LIMIT) return { ok: false, message: 'Free allows up to 5 active habits. Upgrade to Premium to add more.' };
       if (!input.name.trim()) return { ok: false, message: 'Give the habit a name.' };
-      const h: Habit = { ...input, id: uid(), createdAt: Date.now(), updatedAt: Date.now(), paused: false, archived: false };
+      const h: Habit = { ...input, id: uid(), createdAt: Date.now(), updatedAt: Date.now(), paused: false, archived: false, notificationId: null };
       setHabits((prev) => [...prev, h]); try { db.upsertHabit(h); } catch { /* in-memory */ }
-      void scheduleHabitReminder(h);
-      return { ok: true };
+      return { ok: true, habit: h };
     },
-    updateHabit: (h) => { const next = { ...h, updatedAt: Date.now() }; setHabits((prev) => prev.map((x) => (x.id === h.id ? next : x))); try { db.upsertHabit(next); } catch { /* in-memory */ } void scheduleHabitReminder(next); },
+    updateHabit: (h) => { const next = { ...h, updatedAt: Date.now() }; setHabits((prev) => prev.map((x) => (x.id === h.id ? next : x))); try { db.upsertHabit(next); } catch { /* in-memory */ } },
+    rescheduleReminder: async (next, previous) => {
+      const prev = previous ?? habits.find((x) => x.id === next.id) ?? null;
+      const action = resolveReminderAction(prev, next);
+      if (action === 'keep') return { ok: true, message: 'Reminder kept.' };
+      if (action === 'none') return { ok: true, message: 'No reminder set.' };
+      if (action === 'cancel') {
+        await cancelReminder(prev?.notificationId);
+        const updated: Habit = { ...next, notificationId: null };
+        setHabits((p) => p.map((x) => (x.id === next.id ? updated : x))); try { db.upsertHabit(updated); } catch { /* in-memory */ }
+        return { ok: true, message: 'Reminder cancelled.' };
+      }
+      const result = await scheduleHabitReminder(next, prev?.notificationId ?? null);
+      // If scheduling failed after the old reminder was cancelled, do not
+      // leave a stale identifier on the habit.
+      const updated: Habit = { ...next, notificationId: result.ok ? result.notificationId : null };
+      setHabits((p) => p.map((x) => (x.id === next.id ? updated : x))); try { db.upsertHabit(updated); } catch { /* in-memory */ }
+      return { ok: result.ok, message: result.message };
+    },
     deleteHabit: (id) => {
+      const doomed = habits.find((h) => h.id === id);
+      if (doomed?.notificationId) void cancelReminder(doomed.notificationId);
       setHabits((prev) => prev.filter((h) => h.id !== id));
       setCompletions((prev) => prev.filter((x) => x.habitId !== id));
       setRoutines((prev) => prev.map((r) => ({ ...r, habitIds: r.habitIds.filter((hid) => hid !== id) })).filter((r) => r.habitIds.length > 0 || true));

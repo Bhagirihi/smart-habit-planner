@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card, EmptyState, ErrorBanner, ProgressBar, ProgressRing, SecondaryButton, SectionTitle } from '../components/ui';
@@ -22,14 +22,17 @@ function shortDay(key: string): string {
 export default function Progress({ nav }: { nav: Nav }) {
   const { ready, loadError, habits, completions } = useStore();
   const today = todayKey();
+  const [window, setWindow] = useState<'week' | 'month'>('week');
+  const windowDays = window === 'week' ? 7 : 30;
 
-  // Last 7 days, oldest first.
-  const last7 = Array.from({ length: 7 }, (_, i) => addDays(today, -(6 - i)));
-  const perDay = last7.map((d) => ({
+  // Selected window, oldest first, from real stored records.
+  const windowDates = Array.from({ length: windowDays }, (_, i) => addDays(today, -(windowDays - 1 - i)));
+  const perDay = windowDates.map((d) => ({
     date: d,
     count: habits.filter((h) => isScheduledOn(h, d) && isDone(h, completionFor(h.id, d, completions))).length,
   }));
   const maxDay = Math.max(1, ...perDay.map((d) => d.count));
+  const daysWithAny = perDay.filter((d) => d.count > 0).length;
 
   // 3-month heatmap: 84 days ending today, grouped into 12 Monday-start weeks.
   // Days before the first Monday are shown as blank cells so columns stay aligned.
@@ -121,8 +124,27 @@ export default function Progress({ nav }: { nav: Nav }) {
               </View>
             </Card>
 
-            <SectionTitle>Last 7 days</SectionTitle>
+            <SectionTitle>{window === 'week' ? 'This week' : 'This month'}</SectionTitle>
+            <View style={s.toggleRow}>
+              <Pressable
+                style={[s.toggleBtn, window === 'week' && s.toggleBtnActive]}
+                onPress={() => setWindow('week')}
+                accessibilityRole="button"
+              >
+                <Text style={[s.toggleText, window === 'week' && s.toggleTextActive]}>This Week</Text>
+              </Pressable>
+              <Pressable
+                style={[s.toggleBtn, window === 'month' && s.toggleBtnActive]}
+                onPress={() => setWindow('month')}
+                accessibilityRole="button"
+              >
+                <Text style={[s.toggleText, window === 'month' && s.toggleTextActive]}>This Month</Text>
+              </Pressable>
+            </View>
             <Card>
+              <Text style={s.headline}>
+                {daysWithAny}/{windowDays} days
+              </Text>
               {perDay.map((d) => (
                 <View key={d.date} style={s.barRow}>
                   <Text style={s.dayLabel}>{shortDay(d.date)}</Text>
@@ -136,6 +158,19 @@ export default function Progress({ nav }: { nav: Nav }) {
 
             <SectionTitle>Last 12 weeks</SectionTitle>
             <Card>
+              <View style={s.heatRow}>
+                {heatWeeks.map((week, wi) => {
+                  const first = week[0]?.date;
+                  const label = first ? new Date(`${first}T12:00:00`).toLocaleDateString('en-GB', { month: 'short' }) : '';
+                  const prevFirst = wi > 0 ? heatWeeks[wi - 1]?.[0]?.date : null;
+                  const prevLabel = prevFirst ? new Date(`${prevFirst}T12:00:00`).toLocaleDateString('en-GB', { month: 'short' }) : '';
+                  return (
+                    <View key={`month-${wi}`} style={s.heatCol}>
+                      <Text style={s.monthLabel}>{wi === 0 || label !== prevLabel ? label : ''}</Text>
+                    </View>
+                  );
+                })}
+              </View>
               <View style={s.heatRow}>
                 {heatWeeks.map((week, wi) => (
                   <View key={week[0]?.date ?? `week-${wi}`} style={s.heatCol}>
@@ -186,6 +221,12 @@ const s = StyleSheet.create({
   body: { fontSize: type.body, color: c.muted, lineHeight: 20 },
   meta: { fontSize: type.body, color: c.muted, lineHeight: 20 },
   numeral: { fontSize: type.numeral, fontWeight: '600', color: c.ink },
+  headline: { fontSize: type.subtitle, fontWeight: '600', color: c.ink },
+  toggleRow: { flexDirection: 'row', gap: spacing.sm },
+  toggleBtn: { flex: 1, minHeight: 48, borderRadius: radius.md, backgroundColor: c.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
+  toggleBtnActive: { backgroundColor: c.surfaceTonal },
+  toggleText: { fontSize: type.label, fontWeight: '600', color: c.muted },
+  toggleTextActive: { color: c.primary },
   ringRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
   totals: { flex: 1, gap: 2 },
   barRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
@@ -194,6 +235,7 @@ const s = StyleSheet.create({
   countLabel: { width: 24, textAlign: 'right', fontSize: type.body, color: c.ink },
   heatRow: { flexDirection: 'row', gap: 4 },
   heatCol: { flex: 1, gap: 4 },
+  monthLabel: { fontSize: type.small, color: c.muted, minHeight: 16 },
   dot: { height: 12, borderRadius: radius.sm, backgroundColor: c.surfaceAlt },
   habitRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
   rowName: { fontSize: type.label, fontWeight: '600', color: c.ink, flex: 1 },

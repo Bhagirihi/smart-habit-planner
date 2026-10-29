@@ -19,6 +19,7 @@ function rowToHabit(r: Record<string, unknown>): Habit {
     weeklyTarget: Number(r.weekly_target ?? 3), timeSlot: r.time_slot as Habit['timeSlot'],
     startDate: String(r.start_date), skipDays: parse<string[]>(String(r.skip_days ?? '[]'), []),
     reminderEnabled: Number(r.reminder_enabled) === 1, reminderTime: (r.reminder_time as string | null) ?? null,
+    notificationId: (r.notification_id as string | null) ?? null,
     createdAt: Number(r.created_at), updatedAt: Number(r.updated_at),
     paused: Number(r.paused) === 1, archived: Number(r.archived) === 1,
   };
@@ -30,6 +31,8 @@ export function initDb(): void {
   CREATE TABLE IF NOT EXISTS completions (id TEXT PRIMARY KEY, habit_id TEXT, date TEXT, status TEXT, value REAL, created_at INTEGER, updated_at INTEGER, UNIQUE(habit_id, date));
   CREATE TABLE IF NOT EXISTS routines (id TEXT PRIMARY KEY, name TEXT, start_time TEXT, habit_ids TEXT, created_at INTEGER, updated_at INTEGER);
   CREATE TABLE IF NOT EXISTS weekly_reports (id TEXT PRIMARY KEY, week_id TEXT, total_completions INTEGER, best_day TEXT, best_streak INTEGER, lowest_habit_id TEXT, suggestions TEXT, status TEXT);`);
+  // Migration for databases created before reminder identifiers were stored.
+  try { d.execSync('ALTER TABLE habits ADD COLUMN notification_id TEXT'); } catch { /* column already exists */ }
 }
 export function loadPrefs(): Preferences {
   const d = getDb();
@@ -49,8 +52,8 @@ export function loadHabits(): Habit[] {
   return getDb().getAllSync<Record<string, unknown>>('SELECT * FROM habits ORDER BY created_at ASC').map((r) => { try { return rowToHabit(r); } catch { return null; } }).filter((h): h is Habit => h !== null);
 }
 export function upsertHabit(h: Habit): void {
-  getDb().runSync('INSERT OR REPLACE INTO habits VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-    [h.id, h.name, h.icon, h.color, h.type, h.target, h.unit, h.frequency, JSON.stringify(h.weekdays), h.weeklyTarget, h.timeSlot, h.startDate, JSON.stringify(h.skipDays), h.reminderEnabled ? 1 : 0, h.reminderTime, h.createdAt, h.updatedAt, h.paused ? 1 : 0, h.archived ? 1 : 0]);
+  getDb().runSync('INSERT OR REPLACE INTO habits VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+    [h.id, h.name, h.icon, h.color, h.type, h.target, h.unit, h.frequency, JSON.stringify(h.weekdays), h.weeklyTarget, h.timeSlot, h.startDate, JSON.stringify(h.skipDays), h.reminderEnabled ? 1 : 0, h.reminderTime, h.createdAt, h.updatedAt, h.paused ? 1 : 0, h.archived ? 1 : 0, h.notificationId]);
 }
 export function deleteHabitRow(id: string): void { const d = getDb(); d.runSync('DELETE FROM habits WHERE id = ?', [id]); d.runSync('DELETE FROM completions WHERE habit_id = ?', [id]); }
 export function loadCompletions(): Completion[] {

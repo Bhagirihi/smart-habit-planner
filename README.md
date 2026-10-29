@@ -118,17 +118,18 @@ used as the store for any user data.
 
 ## Verification status (coordinator, 29 October 2026, final for v2.1)
 
-- Unit tests (`npx jest`): passed — 2 suites, 26 tests total
-  (16 in `__tests__/streaks.test.ts`, 10 in `__tests__/engine.test.ts`).
+- Unit tests (`npx jest`): passed — 4 suites, 36 tests total
+  (16 in `__tests__/streaks.test.ts`, 10 in `__tests__/engine.test.ts`, 6 in `__tests__/reminders.test.ts`, 4 in `__tests__/navigation.test.ts`).
 - Typecheck (`npx tsc --noEmit`): exit 0, zero errors, repo-wide.
 - Android export (`npx expo export --platform android`): passed, 3.4 MB bundle; `dist/` removed afterwards. Expo 58.0.21, expo-sqlite 16.0.10.
 - No device or emulator run was done, so on-device behaviour is untested.
 
 ## Known limitations (honest, do not smooth over)
 
-- Paywall form preservation: the app renders only the top stack screen, so a new habit/routine draft is lost if the user opens the paywall from the form and then goes back — the form remounts empty (edits to an existing item reload the saved item, draft edits are lost). This does not meet the spec's "without losing the form" for new drafts.
-- Android system back button: no hardware BackHandler is wired, so the system back button exits the app instead of popping the custom stack. In-app back buttons work.
-- Reminder denial message: if notification permission is denied, the scheduling service returns the reason, but the store does not surface that message on the habit form — the user sees no confirmation either way.
-- Weekly Report loads once on mount; if data finishes loading after mount, revisit the screen for fresh data.
+- Paywall form preservation: fixed — the paywall is an overlay on top of the current screen, so a new habit/routine draft survives opening and closing it with input intact.
+- Android system back button: wired — hardware back closes the action sheet, then the paywall overlay, then pops the stack, and only exits at a root tab screen.
+- Reminder identifiers: stored per habit (SQLite `notification_id` column, added by migration). Changing a reminder time, disabling reminders, or deleting a habit cancels the previous notification; a permission denial is shown on HabitForm and the habit is still saved.
+- Weekly Report: reloads when the store becomes ready and on every showing (the screen remounts on each push in the custom navigation shell).
+- In-app Terms, Privacy, and Help sub-screens are linked from Paywall and Settings. These are sub-screens; the primary screen count stays at 14.
 - Routine Form save shows "Routine saved." then navigates back immediately, so the message itself is barely visible; the updated list is the visible confirmation.
 - EAS: `eas.json` profiles exist, but no EAS project is linked and no EAS build has been run.

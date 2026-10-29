@@ -12,8 +12,12 @@ export default function Splash({ nav }: { nav: Nav }) {
   return (
     <SafeAreaView style={s.root}>
       <View style={s.center}>
-        <Text style={s.logo}>Smart habit planner</Text>
-        <Text style={s.tagline}>Build small habits, keep the streak alive.</Text>
+        <View style={s.leafTile}>
+          <Text style={s.leafGlyph}>🌿</Text>
+        </View>
+        <Text style={s.logo}>Smart Habit</Text>
+        <Text style={s.logo}>&amp; Routine Planner</Text>
+        <Text style={s.tagline}>Build better habits. A healthier, happier you.</Text>
         {loadError ? (
           <View style={s.errorWrap}>
             <ErrorBanner message={loadError} />
@@ -38,7 +42,9 @@ export default function Splash({ nav }: { nav: Nav }) {
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.bg },
-  center: { flex: 1, justifyContent: 'center', padding: spacing.lg, gap: spacing.md },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.lg, gap: spacing.md },
+  leafTile: { width: 72, height: 72, borderRadius: radius.lg, backgroundColor: c.surfaceTonal, alignItems: 'center', justifyContent: 'center' },
+  leafGlyph: { fontSize: 36 },
   logo: { fontSize: type.title, fontWeight: '600', color: c.ink, textAlign: 'center' },
   tagline: { fontSize: type.body, color: c.muted, textAlign: 'center', lineHeight: 20 },
   loading: { alignItems: 'center', gap: spacing.sm, marginTop: spacing.lg },

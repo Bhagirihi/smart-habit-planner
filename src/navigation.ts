@@ -7,11 +7,24 @@ export type Route =
   | { name: 'today' } | { name: 'routines' } | { name: 'progress' } | { name: 'settings' }
   | { name: 'habitDetail'; habitId: string } | { name: 'habitForm'; habitId?: string }
   | { name: 'routineDetail'; routineId: string } | { name: 'routineForm'; routineId?: string }
-  | { name: 'paywall'; from?: Route } | { name: 'weeklyReport' };
+  | { name: 'paywall'; from?: Route } | { name: 'weeklyReport' }
+  | { name: 'terms' } | { name: 'privacy' } | { name: 'help' };
 export type TabName = 'today' | 'routines' | 'progress' | 'settings';
 export interface Nav {
   route: Route; push: (r: Route) => void; back: () => void; goTab: (t: TabName) => void;
   openPaywall: (from?: Route) => void;
+  closePaywall: () => void;
+}
+// Pure back-action resolution, used by the Android BackHandler in App.tsx
+// and unit-tested in __tests__/navigation.test.ts. The paywall is an overlay
+// (see App.tsx), so it closes before any stack pop, and the app only exits
+// from a root tab screen.
+export type BackAction = 'close-sheet' | 'close-paywall' | 'pop' | 'exit';
+export function resolveBackAction(input: { sheetOpen: boolean; paywallOpen: boolean; stackDepth: number }): BackAction {
+  if (input.sheetOpen) return 'close-sheet';
+  if (input.paywallOpen) return 'close-paywall';
+  if (input.stackDepth > 1) return 'pop';
+  return 'exit';
 }
 export const TAB_ROUTES: Record<TabName, Route> = {
   today: { name: 'today' }, routines: { name: 'routines' }, progress: { name: 'progress' }, settings: { name: 'settings' },

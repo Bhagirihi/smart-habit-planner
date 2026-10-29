@@ -3,14 +3,21 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card, GhostButton, Inset, PrimaryButton, SectionTitle } from '../components/ui';
 import type { Nav } from '../navigation';
-import { AVAILABLE_PRODUCTS, purchaseProduct, restorePurchases } from '../services/subscription';
+import { purchaseProduct, restorePurchases } from '../services/subscription';
 import { c, radius, spacing, type } from '../theme';
 
 const DEMO_BANNER =
-  'Development / demo mode — no subscription products are configured, so no prices are shown and no purchase can be made.';
-const LEGAL_NOT_PUBLISHED = 'Terms of Service and Privacy Policy are not published yet for this app.';
+  'Development / demo mode — no subscription products are configured, so the plan prices below are demo samples only and no purchase can be made.';
 
 const FREE_FEATURES = ['Up to 5 habits', '1 routine', 'Basic progress', 'Basic reminders'];
+// Display-only demo samples matching the reference image layout. These are NOT
+// real store products or prices: AVAILABLE_PRODUCTS is empty, and tapping a
+// plan still calls purchaseProduct, which returns the not-configured message.
+const DEMO_PLANS = [
+  { id: 'demo-monthly', label: 'Monthly', price: '$2.99', period: 'per month' },
+  { id: 'demo-yearly', label: 'Yearly', price: '$19.99', period: 'per year' },
+  { id: 'demo-lifetime', label: 'Lifetime', price: '$49.99', period: 'one-time' },
+];
 const PREMIUM_FEATURES = [
   'Unlimited habits',
   'Unlimited routines',
@@ -63,9 +70,10 @@ export function Paywall({ nav }: { nav: Nav }) {
     <SafeAreaView style={s.safe}>
       <ScrollView contentContainerStyle={s.content}>
         <View style={s.header}>
-          <Text style={s.title}>Premium</Text>
-          <GhostButton label="Close" onPress={() => nav.back()} />
+          <Text style={s.title}>Upgrade to Premium</Text>
+          <GhostButton label="Close" onPress={() => nav.closePaywall()} />
         </View>
+        <Text style={s.subtitle}>More habits. Deeper insights. A healthier you.</Text>
 
         <Inset>
           <Text style={s.banner}>{DEMO_BANNER}</Text>
@@ -87,18 +95,26 @@ export function Paywall({ nav }: { nav: Nav }) {
               ))}
             </View>
           </View>
-          <Text style={s.note}>No prices are shown because no subscription products are configured.</Text>
+          <Text style={s.note}>The plan prices below are demo samples only — no subscription products are configured.</Text>
         </Card>
 
         <Card>
-          <SectionTitle>Purchase</SectionTitle>
-          {AVAILABLE_PRODUCTS.length === 0 ? (
-            <Text style={s.body}>No products available yet.</Text>
-          ) : (
-            AVAILABLE_PRODUCTS.map((p) => (
-              <PrimaryButton key={p.id} label={p.title} onPress={() => void handlePurchase(p.id)} />
-            ))
-          )}
+          <SectionTitle>Plans</SectionTitle>
+          {DEMO_PLANS.map((p) => (
+            <Pressable
+              key={p.id}
+              style={s.planCard}
+              onPress={() => void handlePurchase(p.id)}
+              accessibilityRole="button"
+            >
+              <View style={s.planTop}>
+                <Text style={s.planLabel}>{p.label}</Text>
+                <Text style={s.planPrice}>{p.price}</Text>
+              </View>
+              <Text style={s.planPeriod}>{p.period}</Text>
+              <Text style={s.planDemo}>Demo sample — not a real store price</Text>
+            </Pressable>
+          ))}
           <Text style={s.body}>
             Purchasing is unavailable in this build. No payment will be taken and Premium will not be unlocked.
           </Text>
@@ -112,10 +128,10 @@ export function Paywall({ nav }: { nav: Nav }) {
 
         <PrimaryButton label={busy ? 'Working…' : 'Restore purchases'} onPress={() => void handleRestore()} />
 
-        <Pressable style={s.legalRow} onPress={() => setMessage(LEGAL_NOT_PUBLISHED)} accessibilityRole="button">
+        <Pressable style={s.legalRow} onPress={() => { nav.closePaywall(); nav.push({ name: 'terms' }); }} accessibilityRole="button">
           <Text style={s.legalText}>Terms of Service</Text>
         </Pressable>
-        <Pressable style={s.legalRow} onPress={() => setMessage(LEGAL_NOT_PUBLISHED)} accessibilityRole="button">
+        <Pressable style={s.legalRow} onPress={() => { nav.closePaywall(); nav.push({ name: 'privacy' }); }} accessibilityRole="button">
           <Text style={s.legalText}>Privacy Policy</Text>
         </Pressable>
       </ScrollView>
@@ -128,6 +144,13 @@ const s = StyleSheet.create({
   content: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxl },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontSize: type.title, fontWeight: '600', color: c.ink },
+  subtitle: { fontSize: type.body, color: c.muted, lineHeight: 20 },
+  planCard: { backgroundColor: c.surfaceAlt, borderRadius: radius.md, padding: spacing.lg, gap: 2 },
+  planTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  planLabel: { fontSize: type.label, fontWeight: '600', color: c.ink },
+  planPrice: { fontSize: type.subtitle, fontWeight: '600', color: c.primary },
+  planPeriod: { fontSize: type.body, color: c.muted },
+  planDemo: { fontSize: type.small, color: c.muted, lineHeight: 18 },
   banner: { fontSize: type.body, color: c.ink, lineHeight: 20 },
   compare: { flexDirection: 'row', gap: spacing.lg },
   column: { flex: 1, gap: spacing.sm },

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -35,17 +35,16 @@ export default function WeeklyReport({ nav }: { nav: Nav }) {
     dismissSuggestion,
     updateHabit,
   } = useStore();
-  const didRefresh = useRef(false);
   const [confirmations, setConfirmations] = useState<Record<string, string>>({});
 
+  // Reload when the store becomes ready AND on every showing: this screen
+  // is mounted fresh on each push in the custom navigation shell, so mount
+  // is "shown again". The ready gate fixes the old bug where a refresh fired
+  // before the store had loaded and then never ran again.
   useEffect(() => {
-    if (!didRefresh.current) {
-      didRefresh.current = true;
-      refreshWeeklyReport();
-    }
-    // Intentionally once on mount, per spec.
+    if (ready) refreshWeeklyReport();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [ready]);
 
   const today = todayKey();
   const bestStreak = habits.reduce((best, h) => Math.max(best, computeBestStreak(h, completions, today)), 0);

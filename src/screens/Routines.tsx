@@ -75,7 +75,12 @@ export default function Routines({ nav }: { nav: Nav }) {
                     <Text style={s.meta}>
                       Today: {done} of {scheduled} done
                     </Text>
-                    <ProgressBar pct={pct} />
+                    <View style={s.barRow}>
+                      <View style={s.barWrap}>
+                        <ProgressBar pct={pct} />
+                      </View>
+                      <Text style={s.pctText}>{pct}%</Text>
+                    </View>
                     <View style={s.row}>
                       <Pressable
                         style={s.deleteBtn}
@@ -112,6 +117,9 @@ const s = StyleSheet.create({
   title: { fontSize: type.title, fontWeight: '600', color: c.ink },
   name: { fontSize: type.subtitle, fontWeight: '600', color: c.ink },
   meta: { fontSize: type.body, color: c.muted },
+  barRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  barWrap: { flex: 1 },
+  pctText: { fontSize: type.label, fontWeight: '600', color: c.ink, minWidth: 44, textAlign: 'right' },
   body: { fontSize: type.body, color: c.muted, lineHeight: 20 },
   row: { flexDirection: 'row', justifyContent: 'flex-end' },
   deleteBtn: { minHeight: 48, justifyContent: 'center', paddingHorizontal: spacing.sm },

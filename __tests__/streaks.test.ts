@@ -31,6 +31,7 @@ function makeHabit(overrides: Partial<Habit> = {}): Habit {
     skipDays: [],
     reminderEnabled: false,
     reminderTime: null,
+    notificationId: null,
     createdAt: 0,
     updatedAt: 0,
     paused: false,

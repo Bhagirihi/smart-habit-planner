@@ -9,7 +9,6 @@ import { c, radius, spacing, type } from '../theme';
 
 const DELETE_WARNING =
   'This deletes all habits, completions, routines and preferences on this device and cancels scheduled reminders. Cloud data is not connected, so nothing is uploaded to delete.';
-const LEGAL_NOT_PUBLISHED = 'Not published yet.';
 const SUBSCRIPTION_MESSAGE =
   'No subscription is configured in this build, so there is nothing to manage. This app runs in demo mode and no purchase has been made.';
 
@@ -67,6 +66,15 @@ export function Settings({ nav }: { nav: Nav }) {
 
         <SectionTitle>Profile</SectionTitle>
         <Card>
+          <View style={s.profileRow}>
+            <View style={s.avatar}>
+              <Text style={s.avatarText}>👤</Text>
+            </View>
+            <View style={s.rowTextWrap}>
+              <Text style={s.rowLabel}>Local profile</Text>
+              <Text style={s.rowDetail}>On this device</Text>
+            </View>
+          </View>
           <Text style={s.body}>Local profile — no account signed in</Text>
           <Text style={s.body}>
             There is no account in this build, so no name or email is stored. Your habits live only on this device.
@@ -118,7 +126,7 @@ export function Settings({ nav }: { nav: Nav }) {
 
         <SectionTitle>Help and support</SectionTitle>
         <Card>
-          <Text style={s.body}>Help is not connected yet — contact the developer through the store listing.</Text>
+          <Row label="Help & Support" detail="Streaks, rest days, free limits, demo paywall, offline use" onPress={() => nav.push({ name: 'help' })} />
         </Card>
 
         <SectionTitle>Premium</SectionTitle>
@@ -129,8 +137,8 @@ export function Settings({ nav }: { nav: Nav }) {
 
         <SectionTitle>Legal</SectionTitle>
         <Card>
-          <Row label="Privacy Policy" onPress={() => setMessage(`Privacy Policy: ${LEGAL_NOT_PUBLISHED}`)} />
-          <Row label="Terms of Service" onPress={() => setMessage(`Terms of Service: ${LEGAL_NOT_PUBLISHED}`)} />
+          <Row label="Privacy Policy" detail="Stored only on this device" onPress={() => nav.push({ name: 'privacy' })} />
+          <Row label="Terms of Service" detail="General description, not legal advice" onPress={() => nav.push({ name: 'terms' })} />
         </Card>
 
         <SectionTitle>Data</SectionTitle>
@@ -162,6 +170,9 @@ const s = StyleSheet.create({
   content: { padding: spacing.lg, gap: spacing.sm, paddingBottom: spacing.xxl },
   title: { fontSize: type.title, fontWeight: '600', color: c.ink },
   body: { fontSize: type.body, color: c.muted, lineHeight: 20 },
+  profileRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  avatar: { width: 48, height: 48, borderRadius: radius.md, backgroundColor: c.surfaceTonal, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontSize: 24 },
   row: {
     minHeight: 48,
     flexDirection: 'row',

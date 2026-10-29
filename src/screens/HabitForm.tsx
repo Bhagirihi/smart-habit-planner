@@ -9,6 +9,12 @@ import { HABIT_COLORS, HABIT_ICONS, c, radius, spacing, type } from '../theme';
 import { FREE_HABIT_LIMIT, newHabitDefaults } from '../types';
 import type { FrequencyType, HabitType, NewHabitInput, TimeSlot } from '../types';
 
+const TIME_SLOTS: { key: TimeSlot; label: string; range: string }[] = [
+  { key: 'morning', label: 'Morning', range: '6:00 - 9:00 AM' },
+  { key: 'afternoon', label: 'Afternoon', range: '12:00 - 5:00 PM' },
+  { key: 'evening', label: 'Evening', range: '6:00 - 10:00 PM' },
+];
+
 const WEEKDAY_CHIPS: { label: string; value: number }[] = [
   { label: 'Mon', value: 1 }, { label: 'Tue', value: 2 }, { label: 'Wed', value: 3 },
   { label: 'Thu', value: 4 }, { label: 'Fri', value: 5 }, { label: 'Sat', value: 6 },
@@ -45,7 +51,7 @@ function parseSkipDays(raw: string): { days: string[]; bad: string[] } {
 }
 
 export default function HabitForm({ nav }: { nav: Nav }) {
-  const { habits, isPremium, addHabit, updateHabit } = useStore();
+  const { habits, isPremium, addHabit, updateHabit, rescheduleReminder } = useStore();
   const editingId = nav.route.name === 'habitForm' ? nav.route.habitId : undefined;
   const existing = editingId ? habits.find((h) => h.id === editingId) : undefined;
   const isNew = !editingId;
@@ -76,6 +82,7 @@ export default function HabitForm({ nav }: { nav: Nav }) {
   const [startDate, setStartDate] = useState(initial.startDate);
   const [skipDaysRaw, setSkipDaysRaw] = useState(initial.skipDays.join(', '));
   const [error, setError] = useState<string | null>(null);
+  const [reminderNote, setReminderNote] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -83,8 +90,9 @@ export default function HabitForm({ nav }: { nav: Nav }) {
     setWeekdays((prev) => (prev.includes(value) ? prev.filter((d) => d !== value) : [...prev, value]));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setError(null);
+    setReminderNote(null);
     setSuccess(null);
     const trimmedName = name.trim();
     if (!trimmedName) {
@@ -137,9 +145,18 @@ export default function HabitForm({ nav }: { nav: Nav }) {
       }
       setSaving(true);
       const result = addHabit(input);
-      setSaving(false);
-      if (!result.ok) {
+      if (!result.ok || !result.habit) {
+        setSaving(false);
         setError(result.message ?? 'This habit could not be saved. Your form has been kept as-is.');
+        return;
+      }
+      // Reminder result is surfaced, never silent: on denial the habit is
+      // already saved, the form is kept, and no navigation happens, so the
+      // user sees the reason and can fix permissions or disable reminders.
+      const reminder = await rescheduleReminder(result.habit, null);
+      setSaving(false);
+      if (!reminder.ok) {
+        setReminderNote(reminder.message);
         return;
       }
       setSuccess('Habit saved.');
@@ -151,7 +168,13 @@ export default function HabitForm({ nav }: { nav: Nav }) {
       setError('This habit no longer exists, so it could not be updated.');
       return;
     }
-    updateHabit({ ...existing, ...input });
+    const updated = { ...existing, ...input };
+    updateHabit(updated);
+    const reminder = await rescheduleReminder(updated, existing);
+    if (!reminder.ok) {
+      setReminderNote(reminder.message);
+      return;
+    }
     setSuccess('Habit saved.');
     setTimeout(() => nav.back(), 900);
   };
@@ -164,6 +187,11 @@ export default function HabitForm({ nav }: { nav: Nav }) {
           <ErrorBanner message="This habit no longer exists." />
         ) : null}
         <ErrorBanner message={error} />
+        {reminderNote ? (
+          <View style={s.reminderNote}>
+            <Text style={s.reminderNoteText}>{reminderNote}</Text>
+          </View>
+        ) : null}
         {success ? (
           <View style={s.success}>
             <Text style={s.successText}>{success}</Text>
@@ -257,10 +285,18 @@ export default function HabitForm({ nav }: { nav: Nav }) {
         ) : null}
 
         <Text style={s.label}>Time of day</Text>
-        <View style={s.wrap}>
-          <Chip label="Morning" active={timeSlot === 'morning'} onPress={() => setTimeSlot('morning')} />
-          <Chip label="Afternoon" active={timeSlot === 'afternoon'} onPress={() => setTimeSlot('afternoon')} />
-          <Chip label="Evening" active={timeSlot === 'evening'} onPress={() => setTimeSlot('evening')} />
+        <View style={s.slotRow}>
+          {TIME_SLOTS.map((slot) => (
+            <Pressable
+              key={slot.key}
+              style={[s.slotBtn, timeSlot === slot.key && s.slotBtnActive]}
+              onPress={() => setTimeSlot(slot.key)}
+              accessibilityRole="button"
+            >
+              <Text style={[s.slotLabel, timeSlot === slot.key && s.slotLabelActive]}>{slot.label}</Text>
+              <Text style={s.slotRange}>{slot.range}</Text>
+            </Pressable>
+          ))}
         </View>
 
         <View style={s.switchRow}>
@@ -313,6 +349,12 @@ const s = StyleSheet.create({
   },
   hint: { fontSize: type.small, color: c.muted, lineHeight: 18 },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  slotRow: { flexDirection: 'row', gap: spacing.sm },
+  slotBtn: { flex: 1, minHeight: 56, borderRadius: radius.full, backgroundColor: c.surfaceAlt, alignItems: 'center', justifyContent: 'center', gap: 2, paddingHorizontal: spacing.sm },
+  slotBtnActive: { backgroundColor: c.surfaceTonal },
+  slotLabel: { fontSize: type.small, fontWeight: '500', color: c.muted },
+  slotLabelActive: { color: c.ink },
+  slotRange: { fontSize: type.small, color: c.muted, textAlign: 'center' },
   iconBtn: { width: 48, height: 48, borderRadius: radius.md, backgroundColor: c.surfaceAlt, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.border },
   iconBtnActive: { borderColor: c.primary, backgroundColor: c.surfaceTonal },
   iconText: { fontSize: 20 },
@@ -327,5 +369,7 @@ const s = StyleSheet.create({
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   success: { backgroundColor: c.surfaceTonal, borderRadius: radius.md, padding: spacing.md },
   successText: { fontSize: type.body, fontWeight: '600', color: c.primary },
+  reminderNote: { backgroundColor: c.surfaceAlt, borderWidth: 1, borderColor: c.error, borderRadius: radius.md, padding: spacing.md },
+  reminderNoteText: { fontSize: type.body, color: c.ink, lineHeight: 20 },
   actions: { gap: spacing.sm, marginTop: spacing.sm },
 });
