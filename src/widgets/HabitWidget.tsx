@@ -13,9 +13,14 @@ import { createWidget } from 'expo-widgets';
 // refresh what the home widget shows. Until then, the widget always shows
 // these static values — it does not read live app state.
 //
-// Layout (new, from the reference widget, adapted — not copied):
-//   1. Week at the top: Mon–Sun row with a coloured circle per day.
-//   2. Below that: "Habit completed today" with count, % and a progress bar.
+// Layout (from the reference widget, adapted — not copied):
+//   1. Week at the top: Mon–Sun circles first, day labels below them
+//      (exactly like the reference: circles on top, Mon–Sun underneath),
+//      no legend line — green = done, amber = today, grey = missed,
+//      mid-tonal = coming up, as in the reference's own colour logic.
+//   2. Below that: "Habit completed today" with count, % and a progress
+//      bar (the reference's STEPS + bar section, adapted to our code:
+//      this app tracks habits completed, not system steps).
 // No steps counter: this app tracks habits, not system steps.
 // No streak line: dropped to keep week + completed-today clean in 4x4.
 //
@@ -60,23 +65,20 @@ const HabitWidget = (props: HabitWidgetProps) => {
       <Text color="#E9F5F1" style={{ fontSize: 13, fontWeight: 'bold' }}>
         This week
       </Text>
-      <Row modifiers={[fillMaxWidth(), padding(0, 4, 0, 4)]}>
-        {days.map((d, i) => (
-          <Text key={d} color={i === 3 ? '#2DD4BF' : '#A7C2BB'} style={{ fontSize: 11, fontWeight: i === 3 ? 'bold' : 'normal' }} modifiers={[size(42, 14)]}>
-            {d}
-          </Text>
-        ))}
-      </Row>
-      <Row modifiers={[fillMaxWidth(), padding(0, 2, 0, 8)]}>
+      <Row modifiers={[fillMaxWidth(), padding(0, 2, 0, 2)]}>
         {status.map((s, i) => (
           <Row key={i} modifiers={[size(42, 28)]}>
             <Box modifiers={[size(28, 28), background(circleColor(s)), cornerRadius(14)]} />
           </Row>
         ))}
       </Row>
-      <Text color="#A7C2BB" style={{ fontSize: 11 }}>
-        Green = done · Amber = today · Grey = missed · Dark = coming up
-      </Text>
+      <Row modifiers={[fillMaxWidth(), padding(0, 2, 0, 8)]}>
+        {days.map((d, i) => (
+          <Text key={d} color={i === 3 ? '#2DD4BF' : '#A7C2BB'} style={{ fontSize: 11, fontWeight: i === 3 ? 'bold' : 'normal' }} modifiers={[size(42, 14)]}>
+            {d}
+          </Text>
+        ))}
+      </Row>
       {/* 2. HABIT COMPLETED TODAY, BELOW THE WEEK */}
       <Text color="#E9F5F1" style={{ fontSize: 16, fontWeight: 'bold' }}>
         Habit completed today

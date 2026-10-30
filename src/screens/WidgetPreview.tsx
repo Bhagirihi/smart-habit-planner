@@ -6,8 +6,9 @@ import { HABITS, WEEK_DAYS, FREE_TIER_DAYS_LEFT } from '../data';
 import type { ScreenProps } from './props';
 
 // Mirrors the real widget in src/widgets/HabitWidget.tsx, in the same order:
-// week at the top, then "Habit completed today" below it. No steps counter:
-// this app tracks habits, not system steps.
+// week at the top (circles first, Mon–Sun labels below them, like the
+// reference image, no legend line), then "Habit completed today" below it.
+// No steps counter: this app tracks habits, not system steps.
 // CONTRAST RULE: week circles and the progress track are never the same
 // colour as the card behind them. Done = bright green, today = amber,
 // missed = light grey-green, future = mid-tonal #334F49 (not near-black).
@@ -44,11 +45,6 @@ export default function WidgetPreview({ nav, ui }: ScreenProps) {
             {/* 1. WEEK AT THE TOP */}
             <Text style={{ color: c.ink, fontWeight: '700', marginTop: spacing.md }}>This week</Text>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm }}>
-              {WEEK_DAYS.map((d, i) => (
-                <Text key={d} style={{ color: i === 3 ? c.primary : c.muted, fontSize: type.small, fontWeight: i === 3 ? '800' : '400', width: 36, textAlign: 'center' }}>{d}</Text>
-              ))}
-            </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm }}>
               {WEEK_STATUS.map((s, i) => {
                 const circ = weekCircle(s);
                 return (
@@ -58,7 +54,11 @@ export default function WidgetPreview({ nav, ui }: ScreenProps) {
                 );
               })}
             </View>
-            <Text style={{ color: c.muted, fontSize: type.small, marginTop: spacing.sm }}>Green = done · Amber = today · Grey = missed · Dark = coming up</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm }}>
+              {WEEK_DAYS.map((d, i) => (
+                <Text key={d} style={{ color: i === 3 ? c.primary : c.muted, fontSize: type.small, fontWeight: i === 3 ? '800' : '400', width: 36, textAlign: 'center' }}>{d}</Text>
+              ))}
+            </View>
             {/* 2. HABIT COMPLETED TODAY, BELOW THE WEEK */}
             <Text style={{ color: c.ink, fontWeight: '800', fontSize: type.subtitle, marginTop: spacing.lg }}>Habit completed today</Text>
             <Text style={{ color: c.ink, fontSize: 28, fontWeight: '800', marginTop: spacing.sm }}>{doneCount} of {HABITS.length} · {pct}%</Text>
