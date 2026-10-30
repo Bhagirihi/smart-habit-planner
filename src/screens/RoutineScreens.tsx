@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { c, spacing, type } from '../theme';
 import { Back, Btn, Card, Field, Note, Row, Screen, Sub, Title } from '../components/ui';
+import { tourMeasure } from '../components/Tooltip';
 import { HABITS, ROUTINES } from '../data';
 import type { ScreenProps } from './props';
 
@@ -9,20 +10,28 @@ function routineById(id: string) {
   return ROUTINES.find((r) => r.id === id) ?? ROUTINES[0]!;
 }
 
-export function Routines({ nav }: ScreenProps) {
+export function Routines({ nav, ui }: ScreenProps) {
+  const firstRef = useRef<any>(null);
+  useEffect(() => {
+    ui.registerTourTarget('routines-first', tourMeasure(firstRef));
+    return () => ui.unregisterTourTarget('routines-first');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return (
     <Screen>
       <ScrollView showsVerticalScrollIndicator={false}>
         <Title>Routines</Title>
         <Sub>Named, ordered habit sequences. Tap one to run it step by step.</Sub>
-        {ROUTINES.map((r) => (
-          <Pressable key={r.id} onPress={() => nav.push({ name: 'routineDetail', routineId: r.id })}>
+        {ROUTINES.map((r, i) => (
+          <View key={r.id} ref={i === 0 ? firstRef : undefined} collapsable={false}>
+          <Pressable onPress={() => nav.push({ name: 'routineDetail', routineId: r.id })}>
             <Card>
               <Row><Text style={{ color: c.ink, fontWeight: '700', fontSize: type.subtitle }}>{r.name}</Text><Text style={{ color: c.primary, fontWeight: '700' }}>{r.percent}%</Text></Row>
               <Text style={{ color: c.muted, marginTop: 4 }}>Starts {r.startTime} · {r.habitIds.length} habits</Text>
               <View style={{ height: 8, backgroundColor: c.surfaceAlt, borderRadius: 4, marginTop: spacing.md }}><View style={{ width: `${r.percent}%`, height: 8, backgroundColor: c.primary, borderRadius: 4 }} /></View>
             </Card>
           </Pressable>
+          </View>
         ))}
         <Btn label="Create routine" onPress={() => nav.push({ name: 'routineForm' })} />
         <Note>Free preview: 1 routine is free in the full spec; a 2nd routine would open the paywall. This UI does not enforce limits.</Note>

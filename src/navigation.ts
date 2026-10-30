@@ -34,6 +34,27 @@ export interface Nav {
   closeSheet: () => void;
 }
 
+export type TourTarget =
+  | 'today-ring'
+  | 'today-free-tier'
+  | 'today-help'
+  | 'today-first-habit'
+  | 'today-first-check'
+  | 'tab-plus'
+  | 'tab-today'
+  | 'tab-routines'
+  | 'tab-progress'
+  | 'tab-settings'
+  | 'routines-first'
+  | 'progress-score'
+  | 'report-first'
+  | 'grid-first'
+  | 'payment-skip'
+  | 'settings-tour';
+
+export interface TourRect { x: number; y: number; width: number; height: number; }
+export type TourMeasure = () => Promise<TourRect | null>;
+
 export interface UiState {
   done: Set<string>;
   toggleDone: (id: string) => void;
@@ -45,6 +66,10 @@ export interface UiState {
   tourDismissed: boolean;
   dismissTour: () => void;
   startTour: () => void;
+  tourActive: boolean;
+  tourStep: number;
+  registerTourTarget: (key: TourTarget, measure: TourMeasure) => void;
+  unregisterTourTarget: (key: TourTarget) => void;
   notifEnabled: boolean;
   toggleNotif: () => void;
 }

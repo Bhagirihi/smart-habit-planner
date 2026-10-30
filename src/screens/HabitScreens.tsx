@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { c, spacing, type } from '../theme';
 import { Back, Btn, Card, Field, Heatmap, IconTile, Note, Row, Screen, Sub, Title } from '../components/ui';
+import { tourMeasure } from '../components/Tooltip';
 import { HABITS } from '../data';
 import type { ScreenProps } from './props';
 
@@ -65,21 +66,29 @@ export function HabitForm({ nav }: ScreenProps) {
   );
 }
 
-export function HabitsGrid({ nav }: ScreenProps) {
+export function HabitsGrid({ nav, ui }: ScreenProps) {
+  const firstRef = useRef<any>(null);
+  useEffect(() => {
+    ui.registerTourTarget('grid-first', tourMeasure(firstRef));
+    return () => ui.unregisterTourTarget('grid-first');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return (
     <Screen>
       <ScrollView showsVerticalScrollIndicator={false}>
         <Back label="‹ Back" onPress={nav.back} />
         <Title>Habits Grid</Title>
         <Sub>One card per habit, with a last-6-months heatmap. Tap a card for detail.</Sub>
-        {HABITS.map((h) => (
-          <Pressable key={h.id} onPress={() => nav.push({ name: 'habitDetail', habitId: h.id })}>
+        {HABITS.map((h, i) => (
+          <View key={h.id} ref={i === 0 ? firstRef : undefined} collapsable={false}>
+          <Pressable onPress={() => nav.push({ name: 'habitDetail', habitId: h.id })}>
             <Card>
               <Row><View style={{ flexDirection: 'row', alignItems: 'center' }}><IconTile icon={h.icon} color={h.color} /><Text style={{ color: c.ink, fontWeight: '700', marginLeft: spacing.md }}>{h.name}</Text></View><Text style={{ color: c.amber, fontWeight: '700' }}>🔥 {h.streak}</Text></Row>
               <View style={{ marginTop: spacing.md }}><Heatmap color={h.color} habitId={h.id} cells={42} /></View>
               <Text style={{ color: c.muted, fontSize: type.small, marginTop: spacing.sm }}>{h.rate}% this month · Best {h.bestStreak} days</Text>
             </Card>
           </Pressable>
+          </View>
         ))}
       </ScrollView>
     </Screen>

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { c, spacing, type } from '../theme';
 import { Back, Btn, Card, Note, Screen, Sub, Title } from '../components/ui';
+import { tourMeasure } from '../components/Tooltip';
 import { FREE_TIER_DAYS_LEFT, FREE_HABIT_LIMIT, FREE_ROUTINE_LIMIT } from '../data';
 import type { ScreenProps } from './props';
 
@@ -11,8 +12,14 @@ const PLANS = [
   { id: 'lifetime', name: 'Lifetime', desc: 'Pay once, keep it forever' },
 ];
 
-export default function PaymentSetup({ nav }: ScreenProps) {
+export default function PaymentSetup({ nav, ui }: ScreenProps) {
   const [selected, setSelected] = useState<string | null>(null);
+  const skipRef = useRef<any>(null);
+  useEffect(() => {
+    ui.registerTourTarget('payment-skip', tourMeasure(skipRef));
+    return () => ui.unregisterTourTarget('payment-skip');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return (
     <Screen>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -31,7 +38,7 @@ export default function PaymentSetup({ nav }: ScreenProps) {
           </Pressable>
         ))}
         <Btn label="Continue (preview → Today, no charge)" onPress={() => nav.goTab('today')} />
-        <Pressable onPress={() => nav.goTab('today')} style={{ minHeight: 48, alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm }}>
+        <Pressable ref={skipRef} onPress={() => nav.goTab('today')} style={{ minHeight: 48, alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm }}>
           <Text style={{ color: c.primary, fontWeight: '800', fontSize: type.label }}>Skip payment setup →</Text>
         </Pressable>
         <View style={{ height: spacing.md }} />

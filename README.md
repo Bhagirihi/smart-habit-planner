@@ -33,6 +33,39 @@ no persistence, no sync, no notifications, and no purchases.
   copied. Verdant Nightfall is interpreted in our own words from
   the style review, using the Design.md starting tokens.
 
+## App icon and splash screen (2026-10-30)
+
+- **App icon:** `assets/icon.png` (1024×1024 PNG) — glowing
+  emerald leaf inside a progress ring on dark forest green,
+  Verdant Nightfall style, no text so it reads at small sizes.
+  Wired in app.json as `icon`, and as the Android adaptive
+  icon foreground in `assets/adaptive-icon.png` (same artwork,
+  centred with padding so launcher cropping keeps the ring
+  intact) over background `#0A1211`.
+- **Splash screen:** `assets/splash.png` (1152×2048 PNG) —
+  same leaf + ring, "Smart Habit" and "Small habits, every
+  day". Wired in app.json as `splash` (contain, background
+  `#0A1211`) and via the `expo-splash-screen` ~58.0.12 config
+  plugin with the same image/background (the plugin entry
+  must be the only `expo-splash-screen` entry — a duplicate
+  bare entry wins as run-once and resets the background to
+  white; verified: prebuild now generates
+  `splashscreen_background #0A1211` and
+  `splashscreen_logo.png`).
+- **Shows every launch:** the native splash shows on every
+  cold launch while the JS bundle loads, then the in-app
+  Splash route (the app's initial route) follows — so a
+  splash is seen every time, not just on first install.
+- **Verified:** prebuild generated the launcher icon
+  (`ic_launcher*.webp`) and splash drawables, then the
+  generated `android/` was deleted; `tsc` 0. Not
+  device-tested, not pushed.
+- **Push warning:** PNG files cannot be pushed reliably
+  through the GitHub MCP push tools (they reject/corrupt
+  binary files) — when this version is pushed, the PNGs in
+  `assets/` need the GitHub website upload route or a local
+  `git` push, with size/hash verification afterwards.
+
 ## New in this update (2026-10-30) — widget, payment setup, free-tier days
 
 - **Today layout change (2026-10-30, user feedback):** the
@@ -84,23 +117,50 @@ no persistence, no sync, no notifications, and no purchases.
   The same 12-days line appears on Payment Setup so the two
   stay consistent.
 
-## Tooltip-guided tour (2026-10-30)
+## Tooltip-guided tour (2026-10-30) — anchored + auto-show for new users
 
 A hand-rolled tooltip tour, no external tooltip library. The
-reusable bubble is `src/components/Tooltip.tsx` (title, 1–2
-short lines, step dots "Step X of 10", Back / Skip / Done,
-close X, and a "Go to …" button where a step has a
-destination), styled in Verdant Nightfall with 48dp touch
-targets. The tour overlay lives in `App.tsx`, above the
-content, so it works with the custom stack: Next/Back only
-move the bubble (they never push a route, so there are no
-dead-ends or duplicate stack entries), while "Go to …"
-navigates once (guarded against pushing the current route)
-and the tour stays open on top. Android back closes the tour
-before popping the stack. Skip and X dismiss it at any step.
+tour is now ANCHORED to the actual element it explains, not a
+bottom-only bubble: `src/components/Tooltip.tsx` renders a
+spotlight — four dim panels around the target (the target area
+itself stays uncovered, so you can still tap the highlighted
+element), an emerald frame around it, and a tooltip bubble on
+the opposite half of the screen with a ▲/▼ arrow pointing at
+the target's centre. Bubble controls are unchanged: title,
+1–2 short lines, step dots "Step X of 14", Back / Skip /
+Next / Done, close X, and a "Go to …" button where a step
+has a destination. The overlay lives in `App.tsx` OUTSIDE
+SafeAreaView (inside the provider) so its absolute window
+coordinates match `measureInWindow` exactly. Next/Back only
+move the bubble (never push a route), "Go to …" navigates
+once (guarded), Android back closes the tour before popping
+the stack, and Skip/X dismiss at any step.
 
-How to start / replay it (session only — reload resets it,
-same as the rest of this preview):
+How targets are measured: each screen registers a measurer
+for its targets via `ui.registerTourTarget(key, tourMeasure(ref))`
+(ref + `measureInWindow`, `collapsable={false}` on wrappers);
+App re-measures the current step's target 350ms after the
+step/route changes (so a screen can mount and Today can
+finish scrolling to the first habit row). If a target is not
+mounted, zero-size, or fully off-screen, that step falls back
+to the old bottom bubble with an amber note telling the user
+to use "Go to …" and step back to see it highlighted. It
+never crashes and never points at nothing. Scrolling while
+the tour is open can leave a frame stale until the next
+step change re-measures it.
+
+Auto-show for NEW users: the first time the app reaches the
+Today screen in a session (Splash → Today directly, or
+Splash → Welcome → Goal → Starter → Today), the tour
+starts automatically at step 1. The flag lives in App.tsx
+as `tourAutoShown` (a ref, session-only): dismissing or
+skipping sets tourActive false but leaves the flag true, so
+returning to Today later in the same session never restarts
+it. Reload resets the flag (no AsyncStorage/SQLite in this
+UI build — nothing is persisted). The final tour step says
+this in-app too.
+
+How to replay / dismiss it (manual replay always works):
 - Today: tap the **?** button at the top right, or the
   "Start guided tour" button on the intro card (the old
   one-line "Tour: tap a row…" card was replaced by this —
@@ -109,25 +169,35 @@ same as the rest of this preview):
 - Settings → **How to use this app — guided tour**
 - Settings → Help → **Start guided tour**
 
+Anchored target → element mapping (step → target → screen):
+1. Today ring → `today-ring` → Today, Ring wrapper
+2. Free tier pill → `today-free-tier` → Today, pill wrapper
+3. Help ? button → `today-help` → Today, ? Pressable
+4. First habit row → `today-first-habit` → Today, first
+   (Drink water) row Pressable; Today auto-scrolls to ~480
+   before measuring so the row is in view
+5. First ✓ button → `today-first-check` → Today, same row's
+   check Pressable
+6. + button → `tab-plus` → App tab bar, central + Pressable
+7. Bottom tabs → `tab-today` → App tab bar, Today tab
+8. First routine → `routines-first` → Routines, first card
+9. Habit Score → `progress-score` → Progress, score card
+10. First suggestion → `report-first` → Weekly Report,
+    first suggestion card
+11. First grid card → `grid-first` → Habits Grid, first card
+12. Skip button → `payment-skip` → Payment Setup, Skip
+    Pressable
+13. Tour row → `settings-tour` → Settings, "How to use
+    this app" row wrapper
+14. You're ready → no target → bottom bubble (by design)
+
 Tour steps (each 2 short sentences max, no prices, no real
-accounts or data invented):
-1. Your Today ring — what "3 of 6" means (Go to Today)
-2. Checking off a habit — row → detail, ✓/○ toggles (Today)
-3. The + button — Add habit vs Create routine
-4. Routines — list, detail, step-by-step Run Mode
-   (Next/Restart) (Go to Routines)
-5. Progress — week/month toggle, Habit Score, heatmaps
-   (Go to Progress)
-6. Weekly Report — suggestions with Apply/Dismiss
-   (Go to Weekly Report)
-7. Habits Grid — what the coloured cells mean
-   (Go to Habits Grid)
-8. Free tier and payment — 5 habits, 1 routine, 12 days left
-   (static demo); Payment Setup has Skip, Paywall is under
-   Settings → Upgrade (Go to Payment Setup)
-9. Settings — account, notifications, Help, Home widget
-   preview (Go to Settings)
-10. You're ready — replay from Settings or the ? on Today
+accounts or data invented) follow the mapping above in
+order, each with its "Go to …" destination where one exists.
+Steps whose target screen is not currently open (e.g. the
+Routines step while still on Today) show the fallback bottom
+bubble until the user taps "Go to …" and steps back to them
+— that is the documented fallback, not a bug.
 
 ## Theme — Verdant Nightfall
 
@@ -254,21 +324,31 @@ home_screen, `res/values/expo_widgets.xml` names it
 NOT been tested on a real device from this VM — on-device
 rendering is untested until you install a dev build.
 
-## Verification (2026-10-30, tooltip-guided tour)
+## Verification (2026-10-30, anchored tooltip tour + auto-show)
 
-- `npx tsc --noEmit`: 0 errors.
-- `npx expo export --platform android`: passed, 642 modules,
-  bundle 1.6 MB, `dist/` total 1,644,100 bytes. `dist/` was
-  deleted afterwards and verified absent.
+- `npx tsc --noEmit`: 0 errors (after fixing RN 0.88 / React
+  19 ref typing: refs are `useRef<any>(null)` — `useRef<View>`
+  resolves to the component type, not the instance, in this
+  stack).
+- `npx expo export --platform android`: passed, bundle
+  1.7 MB, `dist/` total 1,654,546 bytes. `dist/` was deleted
+  afterwards and verified absent.
 - Route walk: all 20 stack cases in `App.tsx` still present
   (splash, welcome, goal, starter, today, habitDetail,
   habitForm, routines, routineDetail, routineForm, progress,
   weeklyReport, settings, habitsGrid, login, signup, forgot,
   widgetPreview, paymentSetup, legal), plus the Paywall
-  overlay and the new tour overlay (not a stack route).
-  Tour entry points: Today ? button, Today intro card,
-  Settings → guided tour, Help → Start guided tour.
-- No device testing was done. On-device behaviour is untested.
+  overlay and the tour overlay (not a stack route, now
+  rendered outside SafeAreaView so window coordinates match).
+  Tour entry points still work: Today ? button, Today intro
+  card, Settings → guided tour, Help → Start guided tour.
+  Auto-show is in code in App.tsx (`tourAutoShown` ref +
+  effect on first `route.name === 'today'`); manual replay
+  is unaffected.
+- No device testing was done. On-device measurement
+  (measureInWindow, scroll-to-row, bubble placement on small
+  screens) is untested — the fallback bottom bubble covers
+  any target that fails to measure.
 - No code was pushed to GitHub. Not a production app.
 
 ## Verification (2026-10-30, real Android widget)

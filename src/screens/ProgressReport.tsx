@@ -1,12 +1,19 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { c, spacing, type } from '../theme';
 import { Back, Btn, Card, Heatmap, Note, Row, Screen, Sub, Title } from '../components/ui';
+import { tourMeasure } from '../components/Tooltip';
 import { HABITS } from '../data';
 import type { ScreenProps } from './props';
 
-export function Progress({ nav }: ScreenProps) {
+export function Progress({ nav, ui }: ScreenProps) {
   const [mode, setMode] = useState<'week' | 'month'>('week');
+  const scoreRef = useRef<any>(null);
+  useEffect(() => {
+    ui.registerTourTarget('progress-score', tourMeasure(scoreRef));
+    return () => ui.unregisterTourTarget('progress-score');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return (
     <Screen>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -18,11 +25,11 @@ export function Progress({ nav }: ScreenProps) {
             </Pressable>
           ))}
         </Row>
-        <Card>
+        <View ref={scoreRef} collapsable={false}><Card>
           <Text style={{ color: c.ink, fontWeight: '700' }}>Habit Score</Text>
           <Text style={{ color: c.ink, fontSize: 36, fontWeight: '800', marginTop: 4 }}>86%</Text>
           <Text style={{ color: c.muted }}>5/7 days this {mode} · Best streak 26 days</Text>
-        </Card>
+        </Card></View>
         <Card>
           <Text style={{ color: c.ink, fontWeight: '700', marginBottom: spacing.sm }}>Week bars</Text>
           {[5, 6, 4, 6, 5, 3, 6].map((v, i) => (
@@ -47,6 +54,12 @@ export function Progress({ nav }: ScreenProps) {
 }
 
 export function WeeklyReport({ nav, ui }: ScreenProps) {
+  const firstRef = useRef<any>(null);
+  useEffect(() => {
+    ui.registerTourTarget('report-first', tourMeasure(firstRef));
+    return () => ui.unregisterTourTarget('report-first');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return (
     <Screen>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -54,10 +67,10 @@ export function WeeklyReport({ nav, ui }: ScreenProps) {
         <Title>Weekly Report</Title>
         <Sub>Week of Oct 27 – Nov 2 · 28 completions · Best day: Thursday · Best streak: 26 days</Sub>
         <Card><Text style={{ color: c.ink, fontWeight: '700' }}>Lowest habit: Evening journal (62%)</Text><Text style={{ color: c.muted, marginTop: 4 }}>Suggestions below change only this session in this UI preview.</Text></Card>
-        {ui.suggestions.map((s) => {
+        {ui.suggestions.map((s, i) => {
           const h = HABITS.find((x) => x.id === s.habitId);
           return (
-            <Card key={s.id}>
+            <View key={s.id} ref={i === 0 ? firstRef : undefined} collapsable={false}><Card>
               <Text style={{ color: c.ink, fontWeight: '700' }}>{s.title}</Text>
               <Text style={{ color: c.muted, marginTop: 4 }}>{s.reason} {h ? `(${h.name})` : ''}</Text>
               {s.state === 'new' ? (
@@ -65,7 +78,7 @@ export function WeeklyReport({ nav, ui }: ScreenProps) {
               ) : (
                 <Text style={{ color: s.state === 'applied' ? c.accent : c.muted, fontWeight: '700', marginTop: spacing.sm }}>{s.state === 'applied' ? '✓ Applied (session only)' : 'Dismissed'}</Text>
               )}
-            </Card>
+            </Card></View>
           );
         })}
         <Note>No backend is involved. Reloading resets every suggestion to New.</Note>

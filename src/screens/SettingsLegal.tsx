@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { c, spacing, type } from '../theme';
 import { Back, Btn, Card, Note, Row, Screen, Sub, Title } from '../components/ui';
+import { tourMeasure } from '../components/Tooltip';
 import type { ScreenProps } from './props';
 
 function SettingRow({ label, onPress }: { label: string; onPress: () => void }) {
@@ -14,6 +15,12 @@ function SettingRow({ label, onPress }: { label: string; onPress: () => void }) 
 
 export function Settings({ nav, ui }: ScreenProps) {
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const tourRowRef = useRef<any>(null);
+  useEffect(() => {
+    ui.registerTourTarget('settings-tour', tourMeasure(tourRowRef));
+    return () => ui.unregisterTourTarget('settings-tour');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return (
     <Screen>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -27,7 +34,7 @@ export function Settings({ nav, ui }: ScreenProps) {
           <Text style={{ color: c.muted, marginTop: spacing.sm }}>Evening review time: 9:00 PM (static preview)</Text>
         </Card>
         <Text style={{ color: c.ink, fontWeight: '700', marginBottom: spacing.sm }}>Help & Legal</Text>
-        <SettingRow label="How to use this app — guided tour" onPress={ui.startTour} />
+        <View ref={tourRowRef} collapsable={false}><SettingRow label="How to use this app — guided tour" onPress={ui.startTour} /></View>
         <SettingRow label="Help — Show guide again" onPress={() => nav.push({ name: 'legal', page: 'Help' })} />
         <SettingRow label="Payment setup (optional, skippable)" onPress={() => nav.push({ name: 'paymentSetup' })} />
         <SettingRow label="Home widget preview" onPress={() => nav.push({ name: 'widgetPreview' })} />

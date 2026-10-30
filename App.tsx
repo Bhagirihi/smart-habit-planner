@@ -1,11 +1,11 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { BackHandler, Pressable, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { BackHandler, Dimensions, Pressable, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { c, spacing, type } from './src/theme';
 import type { Suggestion } from './src/theme';
 import { INITIAL_DONE, SUGGESTIONS } from './src/data';
-import type { Nav, Route, TabName, UiState } from './src/navigation';
+import type { Nav, Route, TabName, TourMeasure, TourRect, TourTarget, UiState } from './src/navigation';
 import { isTabRoute, TAB_ROUTES } from './src/navigation';
 import Splash from './src/screens/Splash';
 import { Goal, Starter, Welcome } from './src/screens/Onboarding';
@@ -37,7 +37,20 @@ export default function App() {
   const [tourDismissed, setTourDismissed] = useState(false);
   const [tourActive, setTourActive] = useState(false);
   const [tourStep, setTourStep] = useState(0);
+  const [targetRect, setTargetRect] = useState<TourRect | null>(null);
   const [notifEnabled, setNotifEnabled] = useState(true);
+  // Tour target measurers: screens register a measureInWindow function for
+  // each target key they render. Stored in a ref (not state) so registering
+  // never re-renders the app; App reads it when the tour step changes.
+  const tourMeasurers = useRef(new Map<TourTarget, TourMeasure>());
+  const tourAutoShown = useRef(false);
+  const tabRefs = useRef<Record<string, any>>({});
+  const registerTourTarget = useCallback((key: TourTarget, measure: TourMeasure) => {
+    tourMeasurers.current.set(key, measure);
+  }, []);
+  const unregisterTourTarget = useCallback((key: TourTarget) => {
+    tourMeasurers.current.delete(key);
+  }, []);
 
   const route = stack[stack.length - 1] ?? { name: 'splash' };
   const push = useCallback((r: Route) => setStack((s) => [...s, r]), []);
@@ -58,6 +71,7 @@ export default function App() {
     dismissSuggestion: (id) => setSuggestions((prev) => prev.map((s) => (s.id === id ? { ...s, state: 'dismissed' } : s))),
     runStep, setRunStep, tourDismissed, dismissTour: () => setTourDismissed(true),
     startTour: () => { setTourStep(0); setTourActive(true); },
+    tourActive, tourStep, registerTourTarget, unregisterTourTarget,
     notifEnabled, toggleNotif: () => setNotifEnabled((v) => !v),
   };
 
@@ -71,6 +85,57 @@ export default function App() {
     });
     return () => sub.remove();
   }, [sheet, paywall, tourActive, stack.length, back]);
+
+  // Register the bottom tab bar + central + button as tour targets. These
+  // are rendered by App itself, so they are always measurable on tab screens.
+  useEffect(() => {
+    const makeMeasure = (key: string): TourMeasure => () => new Promise((resolve) => {
+      const node = tabRefs.current[key];
+      if (!node) return resolve(null);
+      node.measureInWindow((x: number, y: number, width: number, height: number) => resolve(width > 0 ? { x, y, width, height } : null));
+    });
+    (['today', 'routines', 'progress', 'settings'] as const).forEach((t) => {
+      registerTourTarget(`tab-${t}` as TourTarget, makeMeasure(`tab-${t}`));
+    });
+    registerTourTarget('tab-plus', makeMeasure('tab-plus'));
+    // No cleanup: tab bar refs live as long as App does.
+  }, [registerTourTarget]);
+
+  // AUTO-SHOW FOR NEW USERS: the first time the app reaches the Today
+  // screen in a session, start the tour once. Dismissing/Skipping it sets
+  // tourActive false but tourAutoShown stays true, so returning to Today
+  // later in the same session never restarts it. Manual replay via ?,
+  // intro card, Settings, or Help still works. Reload resets the flag
+  // (session-only, no persistence in this UI build).
+  useEffect(() => {
+    if (route.name === 'today' && !tourAutoShown.current && !tourActive) {
+      tourAutoShown.current = true;
+      setTourStep(0);
+      setTourActive(true);
+    }
+  }, [route.name, tourActive]);
+
+  // Measure the current step's target whenever the tour step, the tour
+  // state, or the route changes. The 350ms delay lets a screen mount and
+  // lets Today finish its scroll-to-target animation before measuring.
+  // A missing measurer, a zero-size rect, or a rect fully off-screen
+  // yields null, and TourTooltip falls back to the bottom bubble.
+  useEffect(() => {
+    if (!tourActive) { setTargetRect(null); return; }
+    const step = TOUR_STEPS[tourStep] ?? TOUR_STEPS[0];
+    if (!step.target) { setTargetRect(null); return; }
+    const timer = setTimeout(() => {
+      const measure = tourMeasurers.current.get(step.target!);
+      if (!measure) { setTargetRect(null); return; }
+      measure().then((rect) => {
+        if (!rect) { setTargetRect(null); return; }
+        const H = Dimensions.get('window').height;
+        if (rect.y + rect.height < 0 || rect.y > H) { setTargetRect(null); return; }
+        setTargetRect(rect);
+      }).catch(() => setTargetRect(null));
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [tourActive, tourStep, route.name]);
 
   const goToTourDestination = useCallback((destination: TourDestination) => {
     // Guarded: never push a route that is already on top, never duplicate a tab.
@@ -116,16 +181,16 @@ export default function App() {
           {showTabs && (
             <View style={{ flexDirection: 'row', backgroundColor: c.surface, borderTopColor: c.border, borderTopWidth: 1, paddingTop: spacing.sm, paddingBottom: spacing.sm, alignItems: 'center' }}>
               {TABS.slice(0, 2).map((t) => (
-                <Pressable key={t.id} onPress={() => goTab(t.id)} style={{ flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center' }}>
+                <Pressable key={t.id} ref={(el) => { tabRefs.current[`tab-${t.id}`] = el; }} onPress={() => goTab(t.id)} style={{ flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center' }}>
                   <Text style={{ fontSize: 20 }}>{t.icon}</Text>
                   <Text style={{ color: route.name === t.id ? c.primary : c.muted, fontSize: type.small, fontWeight: route.name === t.id ? '700' : '400' }}>{t.label}</Text>
                 </Pressable>
               ))}
-              <Pressable onPress={() => setSheet(true)} style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center', marginHorizontal: 4, shadowColor: c.primary, shadowOpacity: 0.4, shadowRadius: 10, elevation: 4 }}>
+              <Pressable ref={(el) => { tabRefs.current['tab-plus'] = el; }} onPress={() => setSheet(true)} style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center', marginHorizontal: 4, shadowColor: c.primary, shadowOpacity: 0.4, shadowRadius: 10, elevation: 4 }}>
                 <Text style={{ color: c.onPrimary, fontSize: 28, fontWeight: '800' }}>+</Text>
               </Pressable>
               {TABS.slice(2).map((t) => (
-                <Pressable key={t.id} onPress={() => goTab(t.id)} style={{ flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center' }}>
+                <Pressable key={t.id} ref={(el) => { tabRefs.current[`tab-${t.id}`] = el; }} onPress={() => goTab(t.id)} style={{ flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center' }}>
                   <Text style={{ fontSize: 20 }}>{t.icon}</Text>
                   <Text style={{ color: route.name === t.id ? c.primary : c.muted, fontSize: type.small, fontWeight: route.name === t.id ? '700' : '400' }}>{t.label}</Text>
                 </Pressable>
@@ -144,17 +209,20 @@ export default function App() {
           </View>
         )}
         {paywall && <Paywall onClose={() => setPaywall(false)} />}
-        {tourActive && (
-          <TourTooltip
-            stepIndex={tourStep}
-            onNext={() => { if (tourStep >= TOUR_STEPS.length - 1) setTourActive(false); else setTourStep((s) => s + 1); }}
-            onBack={() => setTourStep((s) => Math.max(0, s - 1))}
-            onSkip={() => setTourActive(false)}
-            onClose={() => setTourActive(false)}
-            onGoTo={goToTourDestination}
-          />
-        )}
       </SafeAreaView>
+      {/* Tour overlay lives OUTSIDE SafeAreaView (but inside the provider)
+          so its absolute window coordinates match measureInWindow exactly. */}
+      {tourActive && (
+        <TourTooltip
+          stepIndex={tourStep}
+          targetRect={targetRect}
+          onNext={() => { if (tourStep >= TOUR_STEPS.length - 1) setTourActive(false); else setTourStep((s) => s + 1); }}
+          onBack={() => setTourStep((s) => Math.max(0, s - 1))}
+          onSkip={() => setTourActive(false)}
+          onClose={() => setTourActive(false)}
+          onGoTo={goToTourDestination}
+        />
+      )}
     </SafeAreaProvider>
   );
 }
