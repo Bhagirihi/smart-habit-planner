@@ -5,7 +5,7 @@ import { Back, Btn, Field, Note, Screen, Sub, Title } from '../components/ui';
 import type { ScreenProps } from './props';
 
 function PreviewNote() {
-  return <Note>UI preview — no account is created or signed in. Continue goes to Today only so you can demo the navigation. It does not mean sign-in succeeded.</Note>;
+  return <Note>UI preview — no account is created or signed in. Continue goes to payment setup first (optional, skippable), then Today, only so you can demo the navigation. It does not mean sign-in succeeded.</Note>;
 }
 function GoogleBtn({ onPress }: { onPress: () => void }) {
   return (
@@ -29,8 +29,8 @@ export function Login({ nav }: ScreenProps) {
         <Field label="Email" value={email} onChange={setEmail} placeholder="you@example.com" />
         <Field label="Password" value={pass} onChange={setPass} secure={!show} placeholder="Your password" />
         <Pressable onPress={() => setShow(!show)} style={{ minHeight: 48, justifyContent: 'center' }}><Text style={{ color: c.primary }}>{show ? 'Hide password' : 'Show password'}</Text></Pressable>
-        <Btn label="Log in (preview → Today)" onPress={() => nav.goTab('today')} />
-        <GoogleBtn onPress={() => nav.goTab('today')} />
+        <Btn label="Log in (preview → payment setup)" onPress={() => nav.push({ name: 'paymentSetup' })} />
+        <GoogleBtn onPress={() => nav.push({ name: 'paymentSetup' })} />
         <Pressable onPress={() => nav.push({ name: 'forgot' })} style={{ minHeight: 48, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: c.primary, fontWeight: '700' }}>Forgot password?</Text></Pressable>
         <Pressable onPress={() => nav.push({ name: 'signup' })} style={{ minHeight: 48, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: c.primary, fontWeight: '700' }}>No account? Sign up</Text></Pressable>
       </ScrollView>
@@ -52,8 +52,8 @@ export function Signup({ nav }: ScreenProps) {
         <Field label="Email" value={email} onChange={setEmail} placeholder="you@example.com" />
         <Field label="Password" value={pass} onChange={setPass} secure={!show} placeholder="Choose a password" />
         <Pressable onPress={() => setShow(!show)} style={{ minHeight: 48, justifyContent: 'center' }}><Text style={{ color: c.primary }}>{show ? 'Hide password' : 'Show password'}</Text></Pressable>
-        <Btn label="Sign up (preview → Today)" onPress={() => nav.goTab('today')} />
-        <GoogleBtn onPress={() => nav.goTab('today')} />
+        <Btn label="Sign up (preview → payment setup)" onPress={() => nav.push({ name: 'paymentSetup' })} />
+        <GoogleBtn onPress={() => nav.push({ name: 'paymentSetup' })} />
         <Pressable onPress={() => nav.push({ name: 'login' })} style={{ minHeight: 48, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: c.primary, fontWeight: '700' }}>Already have an account? Log in</Text></Pressable>
       </ScrollView>
     </Screen>

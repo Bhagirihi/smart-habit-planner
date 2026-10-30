@@ -33,6 +33,47 @@ no persistence, no sync, no notifications, and no purchases.
   copied. Verdant Nightfall is interpreted in our own words from
   the style review, using the Design.md starting tokens.
 
+## New in this update (2026-10-30) — widget, payment setup, free-tier days
+
+- **Dashboard widget (in-app, static):** Today now has a Free Tier
+  card and a Dashboard Widget card below the progress ring. The
+  widget card shows today's completion (e.g. 3 of 6, %) and a
+  compact habit grid (habits as rows, last 7 days as coloured
+  cells: done = habit colour, partial = accent green,
+  missed = surfaceAlt, future/unscheduled = faint; today uses the
+  session done-set). Tapping it opens the Widget Preview screen.
+- **Widget Preview screen (`widgetPreview`, tabs hidden):** shows
+  what an Android home widget would look like inside a
+  home-screen-style frame — completion ring/%, habit names with
+  today's check state, and the same habit grid — with a clear
+  note: "Home widget preview — a real Android home widget needs
+  a development build, it does NOT work in Expo Go."
+- **Real Android home widget: NOT shipped.** expo-widgets
+  (58.0.25) and @expo/ui (58.0.25) exist, but a real widget needs
+  `expo prebuild` (a generated android/ native project) and a
+  development build, which would break this clean Expo Go
+  export-only preview. It was therefore deliberately dropped:
+  no expo-widgets code, no app.json widget plugin, and no
+  android/ folder were added. The in-app widget card + preview
+  screen are what was delivered. The app package stays
+  `com.smarthabit.planner.ui` as already set in app.json.
+- **Payment setup after auth, with Skip (`paymentSetup`):**
+  Login Continue and Signup Continue (email and Google buttons)
+  now go to Payment Setup FIRST, instead of directly to Today.
+  It shows "Set up payment (optional)", plan cards by name only
+  — Monthly, Yearly, Lifetime — with NO prices, a note
+  "UI preview — no payment is taken", a prominent Skip button,
+  and a Continue button that goes to Today for demo only
+  (charges nothing, unlocks nothing). Settings also has a
+  "Payment setup" entry that reopens it. The Paywall overlay is
+  unchanged (plan names only, no prices).
+- **Free-tier days on the dashboard:** Today shows a Free Tier
+  card: "Free tier • 12 days left • 5 habits, 1 routine", from
+  `FREE_TIER_DAYS_LEFT = 12` in `src/data.ts` — a clearly
+  labelled static demo value. No real trial start/end date,
+  subscription, or account is implied. The same 12-days line
+  appears on Payment Setup so the two stay consistent.
+
 ## Theme — Verdant Nightfall
 
 Deep dark green/black forest-night background, glowing emerald
@@ -106,6 +147,14 @@ union + Nav prop), NOT Expo Router.
     Continue → Today for demo only.
 18. **Forgot Password** — email field, then a "Check your email
     (preview state)" state. No email is actually sent.
+19. **Widget Preview** — from the Dashboard Widget card on Today.
+    Home-screen-style frame with completion, habit check states,
+    and the habit grid. Tabs hidden. Real-widget limitation is
+    stated on screen.
+20. **Payment Setup** — from Login/Signup Continue, and from
+    Settings → Payment setup. Optional, skippable, plan names
+    only, no prices, no payment taken. Skip and Continue both
+    go to Today for demo only.
 
 Legal sub-screens (Terms / Privacy / Help) are reached from
 Settings and are part of screen 14's flow.
@@ -115,6 +164,20 @@ Settings, with a central + button opening an action sheet
 (Add habit / Create routine). Detail, form, report, and grid
 screens hide the tabs. Android back order: action sheet →
 paywall overlay → stack pop → exit only at a root tab screen.
+
+## Verification (2026-10-30, widget / payment / free-tier update)
+
+- `npx tsc --noEmit`: 0 errors.
+- `npx expo export --platform android`: passed, 641 modules,
+  bundle 1.6 MB, `dist/` total 1,638,827 bytes. `dist/` was
+  deleted afterwards and verified absent.
+- Route walk: previous 18 items still present, plus
+  `widgetPreview` (from Today widget card) and `paymentSetup`
+  (from Login/Signup Continue and Settings). All routes in
+  `src/navigation.ts` have a matching case in `App.tsx`.
+- No device testing was done. On-device behaviour is untested.
+- Real expo-widgets widget NOT shipped (see above). No code was
+  pushed to GitHub. Not a production app.
 
 ## Verification (2026-10-30, builder run)
 

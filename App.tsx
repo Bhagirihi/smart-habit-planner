@@ -15,6 +15,8 @@ import { RoutineDetail, RoutineForm, Routines } from './src/screens/RoutineScree
 import { Progress, WeeklyReport } from './src/screens/ProgressReport';
 import { Legal, Settings } from './src/screens/SettingsLegal';
 import { Forgot, Login, Signup } from './src/screens/AuthScreens';
+import WidgetPreview from './src/screens/WidgetPreview';
+import PaymentSetup from './src/screens/PaymentSetup';
 import Paywall from './src/components/Paywall';
 
 const TABS: { id: TabName; label: string; icon: string }[] = [
@@ -84,6 +86,8 @@ export default function App() {
     case 'login': content = <Login nav={nav} ui={ui} />; break;
     case 'signup': content = <Signup nav={nav} ui={ui} />; break;
     case 'forgot': content = <Forgot nav={nav} ui={ui} />; break;
+    case 'widgetPreview': content = <WidgetPreview nav={nav} ui={ui} />; break;
+    case 'paymentSetup': content = <PaymentSetup nav={nav} ui={ui} />; break;
     case 'legal': content = <Legal nav={nav} ui={ui} />; break;
     default: content = <Today nav={nav} ui={ui} />;
   }

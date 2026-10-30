@@ -19,6 +19,8 @@ export type Route =
   | { name: 'login' }
   | { name: 'signup' }
   | { name: 'forgot' }
+  | { name: 'widgetPreview' }
+  | { name: 'paymentSetup' }
   | { name: 'legal'; page: 'Terms' | 'Privacy' | 'Help' };
 
 export interface Nav {

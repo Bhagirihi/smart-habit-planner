@@ -2,7 +2,8 @@ import React from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { c, spacing, type } from '../theme';
 import { Btn, Card, IconTile, Note, Ring, Row, Screen, Title } from '../components/ui';
-import { HABITS, WEEK_DATES, WEEK_DAYS } from '../data';
+import { HABITS, WEEK_DATES, WEEK_DAYS, FREE_TIER_DAYS_LEFT, FREE_HABIT_LIMIT, FREE_ROUTINE_LIMIT } from '../data';
+import { WidgetCard } from '../components/Widget';
 import type { ScreenProps } from './props';
 
 const SLOTS = [{ id: 'morning', label: 'Morning' }, { id: 'afternoon', label: 'Afternoon' }, { id: 'evening', label: 'Evening' }] as const;
@@ -15,6 +16,14 @@ export default function Today({ nav, ui }: ScreenProps) {
         <Title>Good morning, Dhruv</Title>
         <Text style={{ color: c.primary, fontSize: type.body, marginBottom: spacing.md }}>Keep going, you're doing great!</Text>
         <Ring done={doneCount} total={HABITS.length} />
+        <Card>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={{ color: c.ink, fontWeight: '800' }}>Free tier</Text>
+            <Text style={{ color: c.primary, fontWeight: '800' }}>{FREE_TIER_DAYS_LEFT} days left</Text>
+          </View>
+          <Text style={{ color: c.muted, marginTop: 4 }}>{FREE_HABIT_LIMIT} habits, {FREE_ROUTINE_LIMIT} routine · Static demo value — real value comes from subscription later. No real trial date or account is implied.</Text>
+        </Card>
+        <WidgetCard ui={ui} onPress={() => nav.push({ name: 'widgetPreview' })} />
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.lg }}>
           {WEEK_DAYS.map((d, i) => (
             <View key={d} style={{ alignItems: 'center', backgroundColor: i === 3 ? c.primary : c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 6 }}>

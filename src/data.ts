@@ -42,3 +42,24 @@ export function heatColor(cell: number, color: string): string {
 }
 export const WEEK_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 export const WEEK_DATES = ['27', '28', '29', '30', '31', '1', '2'];
+// Static demo value — real value comes from subscription later.
+// Do NOT present this as a real trial start/end date, subscription, or account.
+export const FREE_TIER_DAYS_LEFT = 12;
+export const FREE_HABIT_LIMIT = 5;
+export const FREE_ROUTINE_LIMIT = 1;
+// Last-7-days grid cell for the widget: 'done' | 'missed' | 'partial' | 'faint'.
+// Days 0-5 are deterministic static history; day 6 is today and is decided
+// by the session done-set at render time (see WidgetCard).
+export function last7Cell(habitId: string, dayIndex: number): 'done' | 'missed' | 'partial' | 'faint' {
+  const cell = heatCell(habitId, dayIndex);
+  if (cell === 3) return 'done';
+  if (cell === 2) return 'partial';
+  if (cell === 1) return 'missed';
+  return 'faint';
+}
+export function last7Color(state: 'done' | 'missed' | 'partial' | 'faint', color: string): string {
+  if (state === 'done') return color;
+  if (state === 'partial') return '#34D399';
+  if (state === 'missed') return '#0F1E1B';
+  return '#1B2F2B';
+}
