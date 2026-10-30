@@ -14,7 +14,7 @@ export default function WidgetPreview({ nav, ui }: ScreenProps) {
       <ScrollView showsVerticalScrollIndicator={false}>
         <Back label="‹ Back" onPress={nav.back} />
         <Title>Widget preview</Title>
-        <Note>Home widget preview — a real Android home widget needs a development build, it does NOT work in Expo Go. This screen only shows what the widget would look like on a home screen.</Note>
+        <Note>Real Android home widget included: src/widgets/HabitWidget.tsx is registered in app.json (expo-widgets, enableAndroid). It still will NOT appear in Expo Go — install a development build, then long-press the home screen → Widgets → Smart Habit → place it. This screen shows the same completion + grid layout as a preview.</Note>
         {/* Phone-home-screen-style frame */}
         <View style={{ backgroundColor: '#04100D', borderColor: c.border, borderWidth: 1, borderRadius: 28, padding: spacing.lg, marginBottom: spacing.md }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md }}>
@@ -41,8 +41,8 @@ export default function WidgetPreview({ nav, ui }: ScreenProps) {
           <Text style={{ color: c.muted, fontSize: type.small, textAlign: 'center', marginTop: spacing.md }}>Other apps would sit around this widget on a real home screen.</Text>
         </View>
         <Card>
-          <Text style={{ color: c.ink, fontWeight: '700' }}>Why this is a preview only</Text>
-          <Text style={{ color: c.muted, marginTop: 4 }}>A real Android home widget (expo-widgets) needs a native development build and prebuild. This UI-only Expo Go preview cannot place a widget on your home screen, and no widget was installed in this build — see README for the reason.</Text>
+          <Text style={{ color: c.ink, fontWeight: '700' }}>Get it on your home screen</Text>
+          <Text style={{ color: c.muted, marginTop: 4 }}>Install a development build (not Expo Go), then long-press the home screen → Widgets → Smart Habit → place it. The widget shows today's completion and the last-7-days habit grid. See README for the build steps. The widget data is static in this UI build — it does not yet update from the app.</Text>
         </Card>
       </ScrollView>
     </Screen>

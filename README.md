@@ -48,14 +48,23 @@ no persistence, no sync, no notifications, and no purchases.
   today's check state, and the same habit grid — with a clear
   note: "Home widget preview — a real Android home widget needs
   a development build, it does NOT work in Expo Go."
-- **Real Android home widget: NOT shipped.** expo-widgets
-  (58.0.25) and @expo/ui (58.0.25) exist, but a real widget needs
-  `expo prebuild` (a generated android/ native project) and a
-  development build, which would break this clean Expo Go
-  export-only preview. It was therefore deliberately dropped:
-  no expo-widgets code, no app.json widget plugin, and no
-  android/ folder were added. The in-app widget card + preview
-  screen are what was delivered. The app package stays
+- **Real Android home widget: SHIPPED IN CODE (needs a
+  development build to appear on a phone).** `expo-widgets`
+  ~58.0.25 and `@expo/ui` ~58.0.25 are installed, the widget is
+  `src/widgets/HabitWidget.tsx` (registered with `createWidget`
+  as `HabitWidget`, `'widget'` directive, Jetpack Compose
+  components only), and app.json carries the expo-widgets
+  config plugin with `enableAndroid: true`, display name
+  "Smart Habit", 4×4 cells, resizable both ways, and
+  `android.initialLayout` pointing at the widget file. It
+  shows today's completion (3 of 6 · 50%, with a progress bar)
+  and a last-7-days habit grid (6 habits × 7 cells: done =
+  teal, partial = amber, missed = dark surface, not done =
+  darker surface). The widget data is STATIC in this UI build
+  (duplicated inside the widget file, because the isolated
+  widget runtime cannot read app state) — it will not update
+  when you tick habits in the app until persistence +
+  `updateSnapshot` are added. The app package stays
   `com.smarthabit.planner.ui` as already set in app.json.
 - **Payment setup after auth, with Skip (`paymentSetup`):**
   Login Continue and Signup Continue (email and Google buttons)
@@ -165,6 +174,60 @@ Settings, with a central + button opening an action sheet
 screens hide the tabs. Android back order: action sheet →
 paywall overlay → stack pop → exit only at a root tab screen.
 
+## Real Android home widget — how to get it on your phone
+
+Expo Go CANNOT show this widget. You need a development build
+of this exact code on your Android phone:
+
+```sh
+npm install
+npx expo prebuild --platform android
+# then build + install the generated Android app, e.g.:
+npx expo run:android
+# — or — upload to EAS:
+# eas build --profile development --platform android
+```
+
+Then on the phone: long-press the home screen → Widgets →
+find **Smart Habit** → drag it onto the home screen (it is a
+4×4 widget, resizable). Tapping the widget opens the app.
+If the widget does not appear in the picker, the installed
+build is not a development build of this code (e.g. it is
+Expo Go, or an older build from before the widget was added)
+— rebuild from this folder and reinstall.
+
+Prebuild proof (verified 2026-10-30, then the generated
+`android/` folder was deleted so the project stays a clean
+managed Expo project): `AndroidManifest.xml` contains a
+`.HabitWidgetProvider` receiver with `APPWIDGET_UPDATE`,
+`res/xml/habit_widget_info.xml` is 4×4 / resizable /
+home_screen, `res/values/expo_widgets.xml` names it
+"Smart Habit", and `HabitWidgetProvider.kt` registers
+`ExpoWidgetsAppWidgetProvider("HabitWidget")`. The widget has
+NOT been tested on a real device from this VM — on-device
+rendering is untested until you install a dev build.
+
+## Verification (2026-10-30, real Android widget)
+
+- `npx tsc --noEmit`: 0 errors (widget file included).
+- `npx expo prebuild --platform android`: passed. Evidence
+  found in the generated project (see "Real Android home
+  widget" above for the exact files). Generated `android/`
+  was deleted afterwards and verified absent.
+- `npx expo export --platform android`: passed, 641 modules,
+  bundle 1.6 MB, `dist/` total 1,639,237 bytes. `dist/` was
+  deleted afterwards and verified absent. (Module count is
+  unchanged because the widget file is not imported by the
+  main app bundle — it is bundled separately for the widget
+  runtime.)
+- Route walk: all 20 stack cases in `App.tsx` still present,
+  including `widgetPreview` and `paymentSetup`; no routes
+  broke. Widget Preview screen note updated to say the real
+  widget is now in the code and needs a dev build.
+- No device testing was done. On-device widget rendering is
+  untested.
+- No code was pushed to GitHub. Not a production app.
+
 ## Verification (2026-10-30, widget / payment / free-tier update)
 
 - `npx tsc --noEmit`: 0 errors.
@@ -176,8 +239,10 @@ paywall overlay → stack pop → exit only at a root tab screen.
   (from Login/Signup Continue and Settings). All routes in
   `src/navigation.ts` have a matching case in `App.tsx`.
 - No device testing was done. On-device behaviour is untested.
-- Real expo-widgets widget NOT shipped (see above). No code was
-  pushed to GitHub. Not a production app.
+- At that time the real expo-widgets widget was NOT shipped
+  (see above) — this is now superseded by the real Android
+  widget section above. No code was pushed to GitHub. Not a
+  production app.
 
 ## Verification (2026-10-30, builder run)
 
