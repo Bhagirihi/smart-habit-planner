@@ -75,9 +75,9 @@ no persistence, no sync, no notifications, and no purchases.
   The free-tier pill sits directly under "Keep going, you're
   doing great!" and is one compact line, not a card.
 - **Widget Preview screen (`widgetPreview`, tabs hidden):** shows
-  what an Android home widget would look like inside a
-  home-screen-style frame — completion ring/%, habit names with
-  today's check state, and the same habit grid — with a clear
+  the real widget's new layout inside a home-screen-style frame
+  — week at the top (Mon–Sun circles), then "Habit completed
+  today" (count, %, progress bar, done habits) — with a clear
   note: "Home widget preview — a real Android home widget needs
   a development build, it does NOT work in Expo Go." Reached
   from Settings → Home widget preview (no longer from Today).
@@ -89,11 +89,16 @@ no persistence, no sync, no notifications, and no purchases.
   components only), and app.json carries the expo-widgets
   config plugin with `enableAndroid: true`, display name
   "Smart Habit", 4×4 cells, resizable both ways, and
-  `android.initialLayout` pointing at the widget file. It
-  shows today's completion (3 of 6 · 50%, with a progress bar)
-  and a last-7-days habit grid (6 habits × 7 cells: done =
-  teal, partial = amber, missed = dark surface, not done =
-  darker surface). The widget data is STATIC in this UI build
+  `android.initialLayout` pointing at the widget file. Layout
+  (redesigned 2026-10-30, reference-widget inspired, not
+  copied): week at the top — Mon–Sun row with a coloured
+  circle per day (green = done, amber = today, light
+  grey-green = missed, mid-tonal = coming up) — then below
+  it "Habit completed today": 3 of 6 · 50%, with a progress
+  bar and the done habits listed. No steps counter (this app
+  tracks habits, not system steps) and no streak line (dropped
+  to keep week + completed-today clean in 4×4). The widget
+  data is STATIC in this UI build
   (duplicated inside the widget file, because the isolated
   widget runtime cannot read app state) — it will not update
   when you tick habits in the app until persistence +
@@ -129,25 +134,49 @@ the opposite half of the screen with a ▲/▼ arrow pointing at
 the target's centre. Bubble controls are unchanged: title,
 1–2 short lines, step dots "Step X of 14", Back / Skip /
 Next / Done, close X, and a "Go to …" button where a step
-has a destination. The overlay lives in `App.tsx` OUTSIDE
-SafeAreaView (inside the provider) so its absolute window
-coordinates match `measureInWindow` exactly. Next/Back only
+has a destination. The overlay lives in `App.tsx` INSIDE
+SafeAreaView (inside SafeAreaProvider) — see "Safe-area fix"
+below for why the old outside-SafeAreaView placement was
+wrong on real Android devices. Next/Back only
 move the bubble (never push a route), "Go to …" navigates
 once (guarded), Android back closes the tour before popping
 the stack, and Skip/X dismiss at any step.
 
 How targets are measured: each screen registers a measurer
 for its targets via `ui.registerTourTarget(key, tourMeasure(ref))`
-(ref + `measureInWindow`, `collapsable={false}` on wrappers);
-App re-measures the current step's target 350ms after the
-step/route changes (so a screen can mount and Today can
-finish scrolling to the first habit row). If a target is not
-mounted, zero-size, or fully off-screen, that step falls back
-to the old bottom bubble with an amber note telling the user
-to use "Go to …" and step back to see it highlighted. It
-never crashes and never points at nothing. Scrolling while
-the tour is open can leave a frame stale until the next
-step change re-measures it.
+(ref + `measureInWindow`, `collapsable={false}` on every target
+wrapper AND Pressable, so Android cannot flatten a target into
+its parent and return the parent's rect). App converts every
+measured window rect to safe-area coordinates (subtracting
+live insets) and re-measures on step/route change, on inset
+change, and on `ui.requestTourRemeasure()` — with attempts at
+0/150/400ms, keeping the last valid rect — instead of a single
+350ms timeout. If a target is not mounted, zero-size, or fully
+outside the safe area, that step falls back to the old bottom
+bubble with an amber note telling the user to use "Go to …"
+and step back to see it highlighted. It never crashes and
+never points at nothing.
+
+Safe-area fix (2026-10-30, from real-device screenshots):
+the old overlay lived OUTSIDE SafeAreaView while its targets
+lived inside it, so every frame was shifted up by the top
+inset: step 3's frame sat on the status bar instead of the ?
+button, step 2's frame sat on the greeting instead of the
+free-tier pill, and step 4's frame was measured mid-scroll so
+it wrapped the Morning header and cut the row's subtitle.
+Fix: overlay inside SafeAreaView, window rects converted
+with live `useSafeAreaInsets()` (no hard-coded status-bar
+height — insets differ per Android device, notch, and nav
+bar), every frame/bubble clamped to the safe-area bounds,
+Today's habit steps scroll to a position computed from
+onLayout (slot top + row top − 80px, not a hard-coded 480px)
+and re-measure only after the scroll settles
+(onMomentumScrollEnd / onScrollEndDrag, with a 700ms
+fallback), and the tooltip bubble is scrollable inside a
+max-height box so long text cannot overflow a small screen.
+No screen content was moved under a system bar by this
+change: SafeAreaView edges are still top/left/right/bottom
+for the whole app, and the tab bar stays inside it.
 
 Auto-show for NEW users: the first time the app reaches the
 Today screen in a session (Splash → Today directly, or
@@ -274,9 +303,9 @@ union + Nav prop), NOT Expo Router.
 18. **Forgot Password** — email field, then a "Check your email
     (preview state)" state. No email is actually sent.
 19. **Widget Preview** — from Settings → Home widget preview.
-    Home-screen-style frame with completion, habit check states,
-    and the habit grid. Tabs hidden. Real-widget limitation is
-    stated on screen.
+    Home-screen-style frame with the real widget's layout:
+    week at the top, then Habit completed today. Tabs hidden.
+    Real-widget limitation is stated on screen.
 20. **Payment Setup** — from Login/Signup Continue, and from
     Settings → Payment setup. Optional, skippable, plan names
     only, no prices, no payment taken. Skip and Continue both
@@ -290,6 +319,39 @@ Settings, with a central + button opening an action sheet
 (Add habit / Create routine). Detail, form, report, and grid
 screens hide the tabs. Android back order: action sheet →
 paywall overlay → stack pop → exit only at a root tab screen.
+
+## Widget redesign (2026-10-30) — week at top, Habit completed today, contrast rule
+
+- New real-widget layout in `src/widgets/HabitWidget.tsx`:
+  week (Mon–Sun circles) at the top, then "Habit completed
+  today" (3 of 6 · 50%, progress bar, done habits) below it.
+  No steps counter, no streak line (dropped for a clean 4×4).
+  Widget Preview (`widgetPreview`) now mirrors this exact
+  layout, so it can be reviewed in Expo Go.
+- CONTRAST RULE applied: nothing on a dark background may
+  be the same/nearly the same colour as that background.
+  Widget background changed #0D1917 → tonal #12312C;
+  missed cells #1B2F2B/#0F1E1B → light grey-green #8A9E98;
+  future cells → mid-tonal #334F49; progress track
+  #1B2F2B → #334F49. In `src/data.ts`, `heatColor` and
+  `last7Color` missed/faint changed the same way
+  (#0F1E1B → #8A9E98, #1B2F2B → #334F49), which also fixes
+  heatmaps and the old grid. On Today, the ? button,
+  free-tier pill, unselected week-strip pills, and habit rows
+  changed background #0D1917 (surface) → #12312C (tonal),
+  and the unchecked ✓ button changed #0F1E1B (surfaceAlt) →
+  #0D1917 (surface) so it stands out from its tonal row.
+  Widget Preview's phone frame changed #04100D → tonal
+  #12312C with a primary border, so the frame itself is
+  visible on the dark app background.
+- Verification (this redesign): `tsc` 0; Android export
+  passed, 641 modules, 1.7 MB bundle, `dist/` 1,654,013
+  bytes, deleted afterwards; Android prebuild passed and
+  still generated `HabitWidgetProvider`, `habit_widget_info`
+  (4×4), and `expo_widgets.xml`; generated `android/` and
+  `dist/` deleted and verified absent. Not device-tested;
+  the real widget still needs a dev build to appear in the
+  home widget picker.
 
 ## Real Android home widget — how to get it on your phone
 
@@ -339,7 +401,9 @@ rendering is untested until you install a dev build.
   weeklyReport, settings, habitsGrid, login, signup, forgot,
   widgetPreview, paymentSetup, legal), plus the Paywall
   overlay and the tour overlay (not a stack route, now
-  rendered outside SafeAreaView so window coordinates match).
+  rendered INSIDE SafeAreaView in safe-area coordinates —
+  see Safe-area fix above; the old outside-SafeAreaView
+  placement is what shifted frames on real devices).
   Tour entry points still work: Today ? button, Today intro
   card, Settings → guided tour, Help → Start guided tour.
   Auto-show is in code in App.tsx (`tourAutoShown` ref +
@@ -350,6 +414,21 @@ rendering is untested until you install a dev build.
   screens) is untested — the fallback bottom bubble covers
   any target that fails to measure.
 - No code was pushed to GitHub. Not a production app.
+
+## Verification (2026-10-30, Safe-area fix for the tour)
+
+- `npx tsc --noEmit`: 0 errors.
+- `npx expo export --platform android`: passed, bundle
+  1.7 MB, `dist/` total 1,657,101 bytes. `dist/` was deleted
+  afterwards and verified absent; no `android/` folder left.
+- All 20 stack routes, the 14 tour steps, auto-show, and
+  manual replay (Today ?, intro card, Settings, Help) are
+  unchanged in behaviour — only the overlay coordinate
+  system, measurement timing, and Today's scroll changed.
+- NOT device-tested from this VM (no Android device here):
+  the user must re-check steps 2, 3, and 4 on his phone,
+  on any other Android device sizes, before this is called
+  fixed on-device. No code was pushed to GitHub.
 
 ## Verification (2026-10-30, real Android widget)
 

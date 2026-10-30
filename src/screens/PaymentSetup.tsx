@@ -38,7 +38,7 @@ export default function PaymentSetup({ nav, ui }: ScreenProps) {
           </Pressable>
         ))}
         <Btn label="Continue (preview → Today, no charge)" onPress={() => nav.goTab('today')} />
-        <Pressable ref={skipRef} onPress={() => nav.goTab('today')} style={{ minHeight: 48, alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm }}>
+        <Pressable ref={skipRef} collapsable={false} onPress={() => nav.goTab('today')} style={{ minHeight: 48, alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm }}>
           <Text style={{ color: c.primary, fontWeight: '800', fontSize: type.label }}>Skip payment setup →</Text>
         </Pressable>
         <View style={{ height: spacing.md }} />

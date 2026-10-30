@@ -1,20 +1,38 @@
 import React from 'react';
-import { Dimensions, Pressable, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { c, radius, spacing, type } from '../theme';
 import type { TourRect, TourTarget } from '../navigation';
 import { Btn } from './ui';
 
 // Anchored tooltip-guided tour. Hand-rolled, no external tooltip library.
 //
+// COORDINATE CONTRACT (fixed after real-device screenshots showed every
+// frame shifted up by the safe-area inset):
+//   - measureInWindow returns WINDOW coordinates (origin = top-left of the
+//     whole screen, including the status bar / notch area).
+//   - This overlay now lives INSIDE SafeAreaView, so its origin is the
+//     safe-area content origin (window origin + insets). App.tsx therefore
+//     converts every measured rect before passing it here:
+//         safeRect = { x: windowRect.x - insets.left,
+//                      y: windowRect.y - insets.top, width, height }
+//     and passes safeWidth/safeHeight = screen size minus insets. This
+//     component receives safeWidth/safeHeight as props and never calls
+//     Dimensions itself, and NEVER assumes a status-bar height, notch
+//     size, or navigation-bar height —
+//     all of those come from react-native-safe-area-context insets, which
+//     vary per Android device and update when the inset actually changes.
+//   - Every frame and bubble is clamped to [0, safeWidth] x [0, safeHeight],
+//     so nothing can go under the status bar, notch, or system nav bar.
+//
 // How it works: each step may name a TourTarget. Screens register a
 // measurer for their targets (a ref + measureInWindow); App.tsx calls that
-// measurer when the step changes and passes the resulting window rect here.
-// This component then renders a SPOTLIGHT, not a bottom sheet:
+// measurer when the step changes and passes the resulting SAFE-AREA rect
+// here. This component then renders a SPOTLIGHT, not a bottom sheet:
 //   - four dim panels around the target rect (the target area itself is
 //     left uncovered, so the user can still tap the highlighted element),
 //   - an emerald frame around the target rect,
-//   - a tooltip bubble placed at the top of the screen when the target is
-//     in the lower half, or at the bottom when it is in the upper half,
+//   - a tooltip bubble placed at the top of the safe area when the target
+//     is in the lower half, or at the bottom when it is in the upper half,
 //     with a small ▲/▼ arrow pointing toward the target's centre.
 // If a step has no target, or its target is not mounted / off-screen /
 // unmeasurable, this falls back to the old behaviour: a full-screen dim
@@ -144,7 +162,12 @@ export const TOUR_STEPS: TourStep[] = [
 
 interface TourTooltipProps {
   stepIndex: number;
+  // Rect in SAFE-AREA coordinates (see contract above), or null for fallback.
   targetRect: TourRect | null;
+  // Safe-area size: screen size minus live insets. The overlay, frame, and
+  // bubble are all clamped to this, never to the full window.
+  safeWidth: number;
+  safeHeight: number;
   onNext: () => void;
   onBack: () => void;
   onSkip: () => void;
@@ -194,32 +217,47 @@ function Bubble({ step, stepIndex, anchored, onNext, onBack, onSkip, onClose, on
   );
 }
 
-export function TourTooltip({ stepIndex, targetRect, onNext, onBack, onSkip, onClose, onGoTo }: TourTooltipProps) {
+export function TourTooltip({ stepIndex, targetRect, safeWidth, safeHeight, onNext, onBack, onSkip, onClose, onGoTo }: TourTooltipProps) {
   const step = TOUR_STEPS[stepIndex] ?? TOUR_STEPS[0];
   const bubbleProps = { step, stepIndex, onNext, onBack, onSkip, onClose, onGoTo };
+  // Bubble is scrollable inside a max-height box so long text can never
+  // overflow the safe area on a small screen or a large-font device.
+  const bubbleBox = (anchored: boolean) => (
+    <ScrollView style={{ maxHeight: Math.max(200, safeHeight * 0.65) }} showsVerticalScrollIndicator={false}>
+      <Bubble {...bubbleProps} anchored={anchored} />
+    </ScrollView>
+  );
 
   if (!targetRect) {
     // Fallback: no target, or target not mounted / off-screen / unmeasurable.
+    // Positioned inside the safe area (this overlay lives inside
+    // SafeAreaView), so the bubble can never sit under the nav bar.
     return (
       <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }}>
         <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)' }} />
         <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: spacing.lg }}>
-          <Bubble {...bubbleProps} anchored={!step.target} />
+          {bubbleBox(!step.target)}
         </View>
       </View>
     );
   }
 
   // Anchored spotlight: dim everything EXCEPT the target rect, frame it,
-  // and put the bubble on the opposite half of the screen with an arrow.
-  const { width: W, height: H } = Dimensions.get('window');
+  // and put the bubble on the opposite half of the safe area with an arrow.
+  // W/H are SAFE-AREA sizes, not window sizes. The frame is clamped on all
+  // four sides: a rect measured while scrolling, or on a device whose
+  // insets changed, can never draw outside the safe area or under a bar.
+  const W = safeWidth;
+  const H = safeHeight;
   const pad = 6;
-  const x = Math.max(0, targetRect.x - pad);
-  const y = Math.max(0, targetRect.y - pad);
-  const w = Math.min(W - x, targetRect.width + pad * 2);
-  const h = Math.min(H - y, targetRect.height + pad * 2);
+  const x = Math.max(0, Math.min(targetRect.x - pad, W - 1));
+  const y = Math.max(0, Math.min(targetRect.y - pad, H - 1));
+  const w = Math.max(8, Math.min(targetRect.width + pad * 2, W - x));
+  const h = Math.max(8, Math.min(targetRect.height + pad * 2, H - y));
   const bubbleAtTop = y + h > H / 2;
-  const arrowX = Math.min(Math.max(targetRect.x + targetRect.width / 2 - 10, 24), W - 44);
+  // Arrow points at the centre of the (clamped) frame, clamped to the
+  // bubble's horizontal padding so it never leaves the bubble's edge.
+  const arrowX = Math.min(Math.max(x + w / 2 - 10, 24), Math.max(24, W - 44 - spacing.lg));
   const dim = 'rgba(0,0,0,0.6)';
   return (
     <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }}>
@@ -228,13 +266,13 @@ export function TourTooltip({ stepIndex, targetRect, onNext, onBack, onSkip, onC
       <View style={{ position: 'absolute', left: 0, right: 0, top: y + h, bottom: 0, backgroundColor: dim }} />
       <View style={{ position: 'absolute', left: 0, top: y, width: x, height: h, backgroundColor: dim }} />
       <View style={{ position: 'absolute', left: x + w, right: 0, top: y, height: h, backgroundColor: dim }} />
-      {/* Emerald frame around the target. */}
+      {/* Emerald frame around the target — exactly the measured element. */}
       <View pointerEvents="none" style={{ position: 'absolute', left: x, top: y, width: w, height: h, borderWidth: 2, borderColor: c.primary, borderRadius: 12 }} />
-      {/* Bubble + arrow, on the opposite half from the target. */}
+      {/* Bubble + arrow, on the opposite half from the target, inside safe area. */}
       <View style={{ position: 'absolute', left: spacing.lg, right: spacing.lg, top: bubbleAtTop ? spacing.lg : undefined, bottom: bubbleAtTop ? undefined : spacing.lg }}>
-        {!bubbleAtTop && <Text style={{ color: c.primary, fontSize: 18, marginLeft: arrowX - spacing.lg, marginBottom: -4 }}>▲</Text>}
-        <Bubble {...bubbleProps} anchored />
-        {bubbleAtTop && <Text style={{ color: c.primary, fontSize: 18, marginLeft: arrowX - spacing.lg, marginTop: -4 }}>▼</Text>}
+        {!bubbleAtTop && <Text style={{ color: c.primary, fontSize: 18, marginLeft: Math.max(0, arrowX - spacing.lg), marginBottom: -4 }}>▲</Text>}
+        {bubbleBox(true)}
+        {bubbleAtTop && <Text style={{ color: c.primary, fontSize: 18, marginLeft: Math.max(0, arrowX - spacing.lg), marginTop: -4 }}>▼</Text>}
       </View>
     </View>
   );

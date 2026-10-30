@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { BackHandler, Dimensions, Pressable, Text, View } from 'react-native';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { c, spacing, type } from './src/theme';
 import type { Suggestion } from './src/theme';
@@ -27,7 +27,13 @@ const TABS: { id: TabName; label: string; icon: string }[] = [
   { id: 'settings', label: 'Settings', icon: '⚙️' },
 ];
 
-export default function App() {
+// AppInner runs INSIDE SafeAreaProvider, so useSafeAreaInsets() works.
+// The tour overlay lives inside SafeAreaView (see return below) — never
+// outside it, because a view outside SafeAreaView uses window coordinates
+// while the content (and its measured targets) sits inset, which is what
+// shifted every frame up by the inset on real Android devices.
+function AppInner() {
+  const insets = useSafeAreaInsets();
   const [stack, setStack] = useState<Route[]>([{ name: 'splash' }]);
   const [sheet, setSheet] = useState(false);
   const [paywall, setPaywall] = useState(false);
@@ -38,6 +44,9 @@ export default function App() {
   const [tourActive, setTourActive] = useState(false);
   const [tourStep, setTourStep] = useState(0);
   const [targetRect, setTargetRect] = useState<TourRect | null>(null);
+  // Incremented by ui.requestTourRemeasure() (e.g. after a ScrollView
+  // scroll settles) to re-run the measurement effect below.
+  const [remeasureNonce, setRemeasureNonce] = useState(0);
   const [notifEnabled, setNotifEnabled] = useState(true);
   // Tour target measurers: screens register a measureInWindow function for
   // each target key they render. Stored in a ref (not state) so registering
@@ -72,6 +81,7 @@ export default function App() {
     runStep, setRunStep, tourDismissed, dismissTour: () => setTourDismissed(true),
     startTour: () => { setTourStep(0); setTourActive(true); },
     tourActive, tourStep, registerTourTarget, unregisterTourTarget,
+    requestTourRemeasure: () => setRemeasureNonce((n) => n + 1),
     notifEnabled, toggleNotif: () => setNotifEnabled((v) => !v),
   };
 
@@ -115,27 +125,53 @@ export default function App() {
     }
   }, [route.name, tourActive]);
 
-  // Measure the current step's target whenever the tour step, the tour
-  // state, or the route changes. The 350ms delay lets a screen mount and
-  // lets Today finish its scroll-to-target animation before measuring.
-  // A missing measurer, a zero-size rect, or a rect fully off-screen
-  // yields null, and TourTooltip falls back to the bottom bubble.
+  // Measure the current step's target and convert it from WINDOW
+  // coordinates (measureInWindow) to SAFE-AREA coordinates (the overlay
+  // lives inside SafeAreaView, so its origin is window origin + insets).
+  // This effect re-runs when: the step/route changes, the live insets
+  // change (Android insets arrive asynchronously and differ per device —
+  // a rect measured before the real inset arrived is re-measured once it
+  // does), or a screen asks for a re-measure after a scroll settles.
+  // It tries several times (immediately, 150ms, 400ms) instead of relying
+  // on a single 350ms timeout, and keeps the LAST valid rect — layout,
+  // inset, and scroll settling all land at different times on different
+  // devices. A missing measurer, a zero-size rect, or a rect fully
+  // outside the safe area yields null, and TourTooltip falls back to
+  // the bottom bubble.
   useEffect(() => {
     if (!tourActive) { setTargetRect(null); return; }
     const step = TOUR_STEPS[tourStep] ?? TOUR_STEPS[0];
     if (!step.target) { setTargetRect(null); return; }
-    const timer = setTimeout(() => {
+    const W = Dimensions.get('window').width;
+    const H = Dimensions.get('window').height;
+    const safeW = Math.max(1, W - insets.left - insets.right);
+    const safeH = Math.max(1, H - insets.top - insets.bottom);
+    let cancelled = false;
+    const attempt = () => {
       const measure = tourMeasurers.current.get(step.target!);
-      if (!measure) { setTargetRect(null); return; }
+      if (!measure) { if (!cancelled) setTargetRect(null); return; }
       measure().then((rect) => {
-        if (!rect) { setTargetRect(null); return; }
-        const H = Dimensions.get('window').height;
-        if (rect.y + rect.height < 0 || rect.y > H) { setTargetRect(null); return; }
-        setTargetRect(rect);
-      }).catch(() => setTargetRect(null));
-    }, 350);
-    return () => clearTimeout(timer);
-  }, [tourActive, tourStep, route.name]);
+        if (cancelled || !rect) { if (!cancelled) setTargetRect(null); return; }
+        // Convert window -> safe-area coordinates.
+        const safeRect: TourRect = {
+          x: rect.x - insets.left,
+          y: rect.y - insets.top,
+          width: rect.width,
+          height: rect.height,
+        };
+        // Fully outside the safe area (e.g. scrolled off-screen) = no frame.
+        if (safeRect.x + safeRect.width < 0 || safeRect.x > safeW ||
+            safeRect.y + safeRect.height < 0 || safeRect.y > safeH) {
+          setTargetRect(null); return;
+        }
+        setTargetRect(safeRect);
+      }).catch(() => { if (!cancelled) setTargetRect(null); });
+    };
+    attempt();
+    const t1 = setTimeout(attempt, 150);
+    const t2 = setTimeout(attempt, 400);
+    return () => { cancelled = true; clearTimeout(t1); clearTimeout(t2); };
+  }, [tourActive, tourStep, route.name, insets.top, insets.bottom, insets.left, insets.right, remeasureNonce]);
 
   const goToTourDestination = useCallback((destination: TourDestination) => {
     // Guarded: never push a route that is already on top, never duplicate a tab.
@@ -172,8 +208,11 @@ export default function App() {
   }
   const showTabs = isTabRoute(route);
 
+  const safeWidth = Math.max(1, Dimensions.get('window').width - insets.left - insets.right);
+  const safeHeight = Math.max(1, Dimensions.get('window').height - insets.top - insets.bottom);
+
   return (
-    <SafeAreaProvider>
+    <>
       <StatusBar style="light" />
       <SafeAreaView style={{ flex: 1, backgroundColor: c.bg }} edges={['top', 'left', 'right', 'bottom']}>
         <View style={{ flex: 1 }}>
@@ -181,16 +220,16 @@ export default function App() {
           {showTabs && (
             <View style={{ flexDirection: 'row', backgroundColor: c.surface, borderTopColor: c.border, borderTopWidth: 1, paddingTop: spacing.sm, paddingBottom: spacing.sm, alignItems: 'center' }}>
               {TABS.slice(0, 2).map((t) => (
-                <Pressable key={t.id} ref={(el) => { tabRefs.current[`tab-${t.id}`] = el; }} onPress={() => goTab(t.id)} style={{ flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center' }}>
+                <Pressable key={t.id} ref={(el) => { tabRefs.current[`tab-${t.id}`] = el; }} collapsable={false} onPress={() => goTab(t.id)} style={{ flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center' }}>
                   <Text style={{ fontSize: 20 }}>{t.icon}</Text>
                   <Text style={{ color: route.name === t.id ? c.primary : c.muted, fontSize: type.small, fontWeight: route.name === t.id ? '700' : '400' }}>{t.label}</Text>
                 </Pressable>
               ))}
-              <Pressable ref={(el) => { tabRefs.current['tab-plus'] = el; }} onPress={() => setSheet(true)} style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center', marginHorizontal: 4, shadowColor: c.primary, shadowOpacity: 0.4, shadowRadius: 10, elevation: 4 }}>
+              <Pressable ref={(el) => { tabRefs.current['tab-plus'] = el; }} collapsable={false} onPress={() => setSheet(true)} style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center', marginHorizontal: 4, shadowColor: c.primary, shadowOpacity: 0.4, shadowRadius: 10, elevation: 4 }}>
                 <Text style={{ color: c.onPrimary, fontSize: 28, fontWeight: '800' }}>+</Text>
               </Pressable>
               {TABS.slice(2).map((t) => (
-                <Pressable key={t.id} ref={(el) => { tabRefs.current[`tab-${t.id}`] = el; }} onPress={() => goTab(t.id)} style={{ flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center' }}>
+                <Pressable key={t.id} ref={(el) => { tabRefs.current[`tab-${t.id}`] = el; }} collapsable={false} onPress={() => goTab(t.id)} style={{ flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center' }}>
                   <Text style={{ fontSize: 20 }}>{t.icon}</Text>
                   <Text style={{ color: route.name === t.id ? c.primary : c.muted, fontSize: type.small, fontWeight: route.name === t.id ? '700' : '400' }}>{t.label}</Text>
                 </Pressable>
@@ -198,6 +237,23 @@ export default function App() {
             </View>
           )}
         </View>
+          {/* Tour overlay INSIDE SafeAreaView, over content + tabs, in
+              safe-area coordinates (see Tooltip.tsx contract). It can
+              never sit under the status bar, notch, or system nav bar,
+              because SafeAreaView's bounds already exclude them. */}
+          {tourActive && (
+            <TourTooltip
+              stepIndex={tourStep}
+              targetRect={targetRect}
+              safeWidth={safeWidth}
+              safeHeight={safeHeight}
+              onNext={() => { if (tourStep >= TOUR_STEPS.length - 1) setTourActive(false); else setTourStep((s) => s + 1); }}
+              onBack={() => setTourStep((s) => Math.max(0, s - 1))}
+              onSkip={() => setTourActive(false)}
+              onClose={() => setTourActive(false)}
+              onGoTo={goToTourDestination}
+            />
+          )}
         {sheet && (
           <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
             <View style={{ backgroundColor: c.surface, padding: spacing.xl, borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
@@ -210,19 +266,15 @@ export default function App() {
         )}
         {paywall && <Paywall onClose={() => setPaywall(false)} />}
       </SafeAreaView>
-      {/* Tour overlay lives OUTSIDE SafeAreaView (but inside the provider)
-          so its absolute window coordinates match measureInWindow exactly. */}
-      {tourActive && (
-        <TourTooltip
-          stepIndex={tourStep}
-          targetRect={targetRect}
-          onNext={() => { if (tourStep >= TOUR_STEPS.length - 1) setTourActive(false); else setTourStep((s) => s + 1); }}
-          onBack={() => setTourStep((s) => Math.max(0, s - 1))}
-          onSkip={() => setTourActive(false)}
-          onClose={() => setTourActive(false)}
-          onGoTo={goToTourDestination}
-        />
-      )}
+    </>
+  );
+}
+
+// Root: provider must wrap the component that calls useSafeAreaInsets().
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <AppInner />
     </SafeAreaProvider>
   );
 }

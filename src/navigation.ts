@@ -70,6 +70,10 @@ export interface UiState {
   tourStep: number;
   registerTourTarget: (key: TourTarget, measure: TourMeasure) => void;
   unregisterTourTarget: (key: TourTarget) => void;
+  // Ask App to re-measure the current tour target (e.g. after a ScrollView
+  // scroll settles). Incrementing this nonce re-runs App's measurement
+  // effect; it is NOT a navigation action and never changes the step.
+  requestTourRemeasure: () => void;
   notifEnabled: boolean;
   toggleNotif: () => void;
 }

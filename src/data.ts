@@ -34,11 +34,16 @@ export function heatCell(habitId: string, index: number): number {
   for (let i = 0; i < habitId.length; i++) h = (h * 31 + habitId.charCodeAt(i)) % 997;
   return (h + index * 7) % 4;
 }
+// CONTRAST RULE: a cell on a dark surface must never be the same/nearly
+// the same colour as that surface. Old missed #0F1E1B and faint #1B2F2B
+// vanished on surface #0D1917 / bg #0A1211. Missed is now light
+// grey-green #8A9E98, future/unscheduled is mid-tonal #334F49 — both
+// visibly different from the dark background, with light text elsewhere.
 export function heatColor(cell: number, color: string): string {
   if (cell === 3) return color;
   if (cell === 2) return '#34D399';
-  if (cell === 1) return '#0F1E1B';
-  return '#1B2F2B';
+  if (cell === 1) return '#8A9E98';
+  return '#334F49';
 }
 export const WEEK_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 export const WEEK_DATES = ['27', '28', '29', '30', '31', '1', '2'];
@@ -60,6 +65,6 @@ export function last7Cell(habitId: string, dayIndex: number): 'done' | 'missed' 
 export function last7Color(state: 'done' | 'missed' | 'partial' | 'faint', color: string): string {
   if (state === 'done') return color;
   if (state === 'partial') return '#34D399';
-  if (state === 'missed') return '#0F1E1B';
-  return '#1B2F2B';
+  if (state === 'missed') return '#8A9E98';
+  return '#334F49';
 }
