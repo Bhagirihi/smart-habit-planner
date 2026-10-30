@@ -1,7 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Card, EmptyState, ErrorBanner, PrimaryButton, ProgressRing, SectionTitle } from '../components/ui';
+import { Card, EmptyState, ErrorBanner, PrimaryButton, ProgressRing, SecondaryButton, SectionTitle } from '../components/ui';
+import { IconTile } from '../components/IconTile';
+import { GuidedTour, InfoTip } from '../components/Tooltip';
 import { useStore } from '../store';
 import type { Nav } from '../navigation';
 import { addDays, dayOfWeek, formatLongDate, todayKey } from '../lib/dates';
@@ -38,9 +40,7 @@ function HabitRow({ habit, selectedDate, isToday, nav }: { habit: Habit; selecte
         onPress={() => nav.push({ name: 'habitDetail', habitId: habit.id })}
         accessibilityRole="button"
       >
-        <View style={[s.tile, { backgroundColor: habit.color }]}>
-          <Text style={s.tileText}>{habit.icon}</Text>
-        </View>
+        <IconTile icon={habit.icon} color={habit.color} size={40} />
         <View style={s.rowText}>
           <Text style={s.rowName}>{habit.name}</Text>
           <Text style={s.rowDetail}>
@@ -91,11 +91,28 @@ function HabitRow({ habit, selectedDate, isToday, nav }: { habit: Habit; selecte
   );
 }
 
+const TOUR_STEPS = [
+  { title: 'Open a habit', body: 'Tap a habit row to see its detail, streak, and history.' },
+  { title: 'Record today', body: 'Tap Mark done to record today, and tap again to undo. Measurable habits use + and −, avoid habits use Success or Failure.' },
+  { title: "Today's ring", body: "The ring shows how many of today's scheduled habits are done, out of how many are scheduled." },
+  { title: 'Add something new', body: 'Tap the + button at the bottom to add a habit or a routine.' },
+  { title: 'Read the grid', body: 'In the Habits grid, each small square is one day. A square in the habit colour means that day was done.' },
+];
+
 export default function Today({ nav }: { nav: Nav }) {
-  const { ready, loadError, habits, completions, prefs } = useStore();
+  const { ready, loadError, habits, completions, prefs, setPrefs } = useStore();
   const today = todayKey();
   const [selectedDate, setSelectedDate] = useState<string>(today);
+  const [tourVisible, setTourVisible] = useState(false);
   const isToday = selectedDate === today;
+
+  // Guided tour: first visit to Today after onboarding only. Dismissal is
+  // persisted in prefs (tourSeen) so it never reappears on every launch;
+  // Settings > Show guide again resets it to false.
+  useEffect(() => {
+    if (ready && prefs.onboardingComplete && !prefs.tourSeen) setTourVisible(true);
+  }, [ready, prefs.onboardingComplete, prefs.tourSeen]);
+  const closeTour = () => { setTourVisible(false); setPrefs({ tourSeen: true }); };
 
   const dateStrip = useMemo(() => {
     const out: string[] = [];
@@ -129,8 +146,16 @@ export default function Today({ nav }: { nav: Nav }) {
   return (
     <SafeAreaView style={s.root}>
       <ScrollView contentContainerStyle={s.content}>
-        <Text style={s.greeting}>{greeting()}{prefs.goal ? ` · ${prefs.goal}` : ''}</Text>
-        <Text style={s.date}>{formatLongDate(selectedDate)}</Text>
+        <View style={s.titleRow}>
+          <View>
+            <Text style={s.greeting}>{greeting()}{prefs.goal ? ` · ${prefs.goal}` : ''}</Text>
+            <Text style={s.date}>{formatLongDate(selectedDate)}</Text>
+          </View>
+          <InfoTip
+            label="About Today"
+            text="Today shows only the habits scheduled for the day you pick. The ring counts done habits out of scheduled habits. Tap a row for its detail, tap Mark done to record today and again to undo, and use the date strip to look back — past days are read-only."
+          />
+        </View>
         {scheduled.length > 0 ? <Text style={s.encourage}>Keep going, you&apos;re doing great!</Text> : null}
         <ErrorBanner message={loadError} />
         {!isToday ? (
@@ -200,8 +225,10 @@ export default function Today({ nav }: { nav: Nav }) {
 
         <View style={s.actions}>
           <PrimaryButton label="Add habit" onPress={() => nav.push({ name: 'habitForm' })} />
+          <SecondaryButton label="All habits · Habits grid" onPress={() => nav.push({ name: 'habitsGrid' })} />
         </View>
       </ScrollView>
+      <GuidedTour steps={TOUR_STEPS} visible={tourVisible} onClose={closeTour} />
     </SafeAreaView>
   );
 }
@@ -211,6 +238,7 @@ const s = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
   loadingText: { fontSize: type.body, color: c.muted },
   content: { padding: spacing.lg, gap: spacing.md },
+  titleRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.md },
   greeting: { fontSize: type.title, fontWeight: '600', color: c.ink },
   date: { fontSize: type.body, color: c.muted },
   encourage: { fontSize: type.body, color: c.primary, lineHeight: 20 },
@@ -229,8 +257,6 @@ const s = StyleSheet.create({
     backgroundColor: c.surface, borderRadius: radius.lg, padding: spacing.lg, minHeight: 48,
   },
   rowMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 48 },
-  tile: { width: 40, height: 40, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
-  tileText: { fontSize: 18 },
   rowText: { flex: 1, gap: 2 },
   rowName: { fontSize: type.label, fontWeight: '600', color: c.ink },
   rowDetail: { fontSize: type.small, color: c.muted },

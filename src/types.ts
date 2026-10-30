@@ -6,6 +6,9 @@ export type Goal = 'Fitness' | 'Study' | 'Health' | 'Productivity' | 'Better Mor
 export interface Preferences {
   onboardingComplete: boolean; goal: Goal | null; wakeTime: string;
   eveningReviewTime: string; theme: 'dark'; notificationsEnabled: boolean;
+  // Guided-tour dismissal, persisted so the tour shows once, not on every
+  // launch. "Show guide again" in Settings resets this to false.
+  tourSeen: boolean;
 }
 export interface Habit {
   id: string; name: string; icon: string; color: string; type: HabitType;

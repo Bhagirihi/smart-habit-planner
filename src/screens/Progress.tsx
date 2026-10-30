@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card, EmptyState, ErrorBanner, ProgressBar, ProgressRing, SecondaryButton, SectionTitle } from '../components/ui';
+import { IconTile } from '../components/IconTile';
+import { InfoTip } from '../components/Tooltip';
 import { addDays, todayKey, weekStartKey } from '../lib/dates';
 import type { Nav } from '../navigation';
 import {
@@ -92,7 +94,13 @@ export default function Progress({ nav }: { nav: Nav }) {
   return (
     <SafeAreaView style={s.safe}>
       <ScrollView contentContainerStyle={s.content}>
-        <Text style={s.title}>Progress</Text>
+        <View style={s.titleRow}>
+          <Text style={s.title}>Progress</Text>
+          <InfoTip
+            label="About Progress"
+            text="This screen uses only your real records. The week and month buttons change the bar chart window, the dots are the last 12 weeks, and the habit list is sorted weakest first so the habit that needs attention is at the top. Tap a habit to open its detail."
+          />
+        </View>
         <ErrorBanner message={loadError} />
         {!ready ? (
           <Card>
@@ -195,10 +203,9 @@ export default function Progress({ nav }: { nav: Nav }) {
               >
                 <Card>
                   <View style={s.habitRow}>
-                    <Text style={s.rowName}>
-                      {habit.icon} {habit.name}
-                    </Text>
-                    <Text style={s.meta}>{rate === null ? 'No data' : `${rate}%`}</Text>
+                    <IconTile icon={habit.icon} color={habit.color} size={32} />
+                    <Text style={s.rowName}>{habit.name}</Text>
+                    <Text style={s.rateText}>{rate === null ? 'No data' : `${rate}%`}</Text>
                   </View>
                   <Text style={s.meta}>Current streak: {streak} days</Text>
                   {rate !== null ? <ProgressBar pct={rate} color={habit.color} /> : null}
@@ -207,6 +214,7 @@ export default function Progress({ nav }: { nav: Nav }) {
             ))}
 
             <SecondaryButton label="View weekly report" onPress={() => nav.push({ name: 'weeklyReport' })} />
+            <SecondaryButton label="All habits · Habits grid" onPress={() => nav.push({ name: 'habitsGrid' })} />
           </>
         )}
       </ScrollView>
@@ -217,7 +225,9 @@ export default function Progress({ nav }: { nav: Nav }) {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: c.bg },
   content: { padding: spacing.lg, gap: spacing.lg },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontSize: type.title, fontWeight: '600', color: c.ink },
+  rateText: { fontSize: type.label, fontWeight: '600', color: c.ink },
   body: { fontSize: type.body, color: c.muted, lineHeight: 20 },
   meta: { fontSize: type.body, color: c.muted, lineHeight: 20 },
   numeral: { fontSize: type.numeral, fontWeight: '600', color: c.ink },

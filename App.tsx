@@ -20,6 +20,7 @@ import RoutineForm from './src/screens/RoutineForm';
 import Progress from './src/screens/Progress';
 import { Paywall } from './src/screens/Paywall';
 import WeeklyReport from './src/screens/WeeklyReport';
+import HabitsGrid from './src/screens/HabitsGrid';
 import { Settings } from './src/screens/Settings';
 import { HelpScreen, PrivacyScreen, TermsScreen } from './src/screens/Legal';
 
@@ -74,6 +75,7 @@ function Shell() {
       case 'today': return <Today nav={screenNav} />;
       case 'habitDetail': return <HabitDetail nav={screenNav} />;
       case 'habitForm': return <HabitForm nav={screenNav} />;
+      case 'habitsGrid': return <HabitsGrid nav={screenNav} />;
       case 'routines': return <Routines nav={screenNav} />;
       case 'routineDetail': return <RoutineDetail nav={screenNav} />;
       case 'routineForm': return <RoutineForm nav={screenNav} />;

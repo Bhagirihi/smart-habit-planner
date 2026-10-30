@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card, ErrorBanner, GhostButton, Inset, PrimaryButton, ProgressBar, SecondaryButton, SectionTitle } from '../components/ui';
+import { IconTile } from '../components/IconTile';
 import { useStore } from '../store';
 import type { Nav } from '../navigation';
 import { addDays, formatLongDate, todayKey } from '../lib/dates';
@@ -112,9 +113,7 @@ export default function HabitDetail({ nav }: { nav: Nav }) {
     <SafeAreaView style={s.root}>
       <ScrollView contentContainerStyle={s.content}>
         <View style={s.header}>
-          <View style={[s.tile, { backgroundColor: habit.color }]}>
-            <Text style={s.tileText}>{habit.icon}</Text>
-          </View>
+          <IconTile icon={habit.icon} color={habit.color} size={56} />
           <View style={s.headerText}>
             <Text style={s.title}>{habit.name}</Text>
             <Text style={s.subtitle}>
@@ -220,8 +219,6 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.bg },
   content: { padding: spacing.lg, gap: spacing.md },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  tile: { width: 56, height: 56, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center' },
-  tileText: { fontSize: 28 },
   headerText: { flex: 1, gap: 2 },
   title: { fontSize: type.title, fontWeight: '600', color: c.ink },
   subtitle: { fontSize: type.body, color: c.muted },

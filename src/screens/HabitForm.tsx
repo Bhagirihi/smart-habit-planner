@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Chip, ErrorBanner, PrimaryButton, SecondaryButton } from '../components/ui';
+import { IconTile } from '../components/IconTile';
 import { useStore } from '../store';
 import type { Nav } from '../navigation';
 import { isValidDateKey, todayKey } from '../lib/dates';
@@ -206,6 +207,13 @@ export default function HabitForm({ nav }: { nav: Nav }) {
         />
 
         <Text style={s.label}>Icon</Text>
+        <View style={s.previewRow}>
+          <IconTile icon={icon} color={color} size={56} />
+          <View style={{ flex: 1 }}>
+            <Text style={s.previewLabel}>Preview</Text>
+            <Text style={s.previewText}>This is how the habit will look in lists and on the grid.</Text>
+          </View>
+        </View>
         <View style={s.wrap}>
           {HABIT_ICONS.map((ic) => (
             <Pressable key={ic} style={[s.iconBtn, icon === ic && s.iconBtnActive]} onPress={() => setIcon(ic)} accessibilityRole="button">
@@ -355,9 +363,12 @@ const s = StyleSheet.create({
   slotLabel: { fontSize: type.small, fontWeight: '500', color: c.muted },
   slotLabelActive: { color: c.ink },
   slotRange: { fontSize: type.small, color: c.muted, textAlign: 'center' },
-  iconBtn: { width: 48, height: 48, borderRadius: radius.md, backgroundColor: c.surfaceAlt, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.border },
+  previewRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  previewLabel: { fontSize: type.label, fontWeight: '600', color: c.ink },
+  previewText: { fontSize: type.small, color: c.muted, lineHeight: 18, flexShrink: 1 },
+  iconBtn: { width: 56, height: 56, borderRadius: radius.md, backgroundColor: c.surfaceAlt, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.border },
   iconBtnActive: { borderColor: c.primary, backgroundColor: c.surfaceTonal },
-  iconText: { fontSize: 20 },
+  iconText: { fontSize: 24 },
   colorBtn: { width: 48, height: 48, borderRadius: 24, borderWidth: 2, borderColor: 'transparent' },
   colorBtnActive: { borderColor: c.ink },
   fieldGroup: { gap: spacing.sm },

@@ -12,6 +12,6 @@ export const HABIT_COLORS = [
   { id: 'teal', value: '#2DD4BF' }, { id: 'blue', value: '#60A5FA' }, { id: 'violet', value: '#A78BFA' },
   { id: 'amber', value: '#FBBF24' }, { id: 'coral', value: '#FB7185' }, { id: 'green', value: '#34D399' },
 ];
-export const HABIT_ICONS = ['✓', '💧', '🚶', '📖', '🧘', '🥗', '😴', '🏋️', '✍️', '🎯', '🧹', '💻'];
+export const HABIT_ICONS = ['✓', '💧', '🚶', '📖', '🧘', '🥗', '😴', '🏋️', '✍️', '🎯', '🧹', '💻', '👣', '🏃', '🍎', '🎵', '💰', '🧠', '🚰'];
 export const GOALS = ['Fitness', 'Study', 'Health', 'Productivity', 'Better Mornings'] as const;
 export type Goal = (typeof GOALS)[number];

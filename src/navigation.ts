@@ -6,6 +6,7 @@ export type Route =
   | { name: 'splash' } | { name: 'welcome' } | { name: 'goal' } | { name: 'starter' }
   | { name: 'today' } | { name: 'routines' } | { name: 'progress' } | { name: 'settings' }
   | { name: 'habitDetail'; habitId: string } | { name: 'habitForm'; habitId?: string }
+  | { name: 'habitsGrid' }
   | { name: 'routineDetail'; routineId: string } | { name: 'routineForm'; routineId?: string }
   | { name: 'paywall'; from?: Route } | { name: 'weeklyReport' }
   | { name: 'terms' } | { name: 'privacy' } | { name: 'help' };

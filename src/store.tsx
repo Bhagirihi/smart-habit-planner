@@ -74,7 +74,7 @@ export const STARTER: Record<string, { name: string; icon: string; color: string
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [prefs, setPrefsState] = useState<Preferences>({ onboardingComplete: false, goal: null, wakeTime: '07:00', eveningReviewTime: '21:00', theme: 'dark', notificationsEnabled: true });
+  const [prefs, setPrefsState] = useState<Preferences>({ onboardingComplete: false, goal: null, wakeTime: '07:00', eveningReviewTime: '21:00', theme: 'dark', notificationsEnabled: true, tourSeen: false });
   const [habits, setHabits] = useState<Habit[]>([]);
   const [completions, setCompletions] = useState<Completion[]>([]);
   const [routines, setRoutines] = useState<Routine[]>([]);
@@ -185,7 +185,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       await cancelAllReminders();
       try { db.clearAllData(); } catch { /* in-memory */ }
       setHabits([]); setCompletions([]); setRoutines([]); setWeeklyReport(null);
-      setPrefsState({ onboardingComplete: false, goal: null, wakeTime: '07:00', eveningReviewTime: '21:00', theme: 'dark', notificationsEnabled: true });
+      setPrefsState({ onboardingComplete: false, goal: null, wakeTime: '07:00', eveningReviewTime: '21:00', theme: 'dark', notificationsEnabled: true, tourSeen: false });
     },
   }), [ready, loadError, prefs, habits, completions, routines, weeklyReport]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

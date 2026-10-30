@@ -127,6 +127,11 @@ export function Settings({ nav }: { nav: Nav }) {
         <SectionTitle>Help and support</SectionTitle>
         <Card>
           <Row label="Help & Support" detail="Streaks, rest days, free limits, demo paywall, offline use" onPress={() => nav.push({ name: 'help' })} />
+          <Row
+            label="Show guide again"
+            detail="Replay the guided tour on Today"
+            onPress={() => { setPrefs({ tourSeen: false }); nav.goTab('today'); }}
+          />
         </Card>
 
         <SectionTitle>Premium</SectionTitle>

@@ -33,20 +33,23 @@ export function initDb(): void {
   CREATE TABLE IF NOT EXISTS weekly_reports (id TEXT PRIMARY KEY, week_id TEXT, total_completions INTEGER, best_day TEXT, best_streak INTEGER, lowest_habit_id TEXT, suggestions TEXT, status TEXT);`);
   // Migration for databases created before reminder identifiers were stored.
   try { d.execSync('ALTER TABLE habits ADD COLUMN notification_id TEXT'); } catch { /* column already exists */ }
+  // Additive migration for the guided-tour flag; never a breaking change.
+  try { d.execSync('ALTER TABLE prefs ADD COLUMN tour_seen INTEGER'); } catch { /* column already exists */ }
 }
 export function loadPrefs(): Preferences {
   const d = getDb();
   const row = d.getFirstSync<Record<string, unknown>>('SELECT * FROM prefs WHERE id = 1');
-  if (!row) return { onboardingComplete: false, goal: null, wakeTime: '07:00', eveningReviewTime: '21:00', theme: 'dark', notificationsEnabled: true };
+  if (!row) return { onboardingComplete: false, goal: null, wakeTime: '07:00', eveningReviewTime: '21:00', theme: 'dark', notificationsEnabled: true, tourSeen: false };
   return {
     onboardingComplete: Number(row.onboarding_complete) === 1, goal: (row.goal as Preferences['goal']) ?? null,
     wakeTime: String(row.wake_time ?? '07:00'), eveningReviewTime: String(row.evening_review_time ?? '21:00'),
     theme: 'dark', notificationsEnabled: Number(row.notifications_enabled) !== 0,
+    tourSeen: Number(row.tour_seen ?? 0) === 1,
   };
 }
 export function savePrefs(p: Preferences): void {
-  getDb().runSync('INSERT OR REPLACE INTO prefs (id, onboarding_complete, goal, wake_time, evening_review_time, theme, notifications_enabled) VALUES (1, ?, ?, ?, ?, ?, ?)',
-    [p.onboardingComplete ? 1 : 0, p.goal, p.wakeTime, p.eveningReviewTime, 'dark', p.notificationsEnabled ? 1 : 0]);
+  getDb().runSync('INSERT OR REPLACE INTO prefs (id, onboarding_complete, goal, wake_time, evening_review_time, theme, notifications_enabled, tour_seen) VALUES (1, ?, ?, ?, ?, ?, ?, ?)',
+    [p.onboardingComplete ? 1 : 0, p.goal, p.wakeTime, p.eveningReviewTime, 'dark', p.notificationsEnabled ? 1 : 0, p.tourSeen ? 1 : 0]);
 }
 export function loadHabits(): Habit[] {
   return getDb().getAllSync<Record<string, unknown>>('SELECT * FROM habits ORDER BY created_at ASC').map((r) => { try { return rowToHabit(r); } catch { return null; } }).filter((h): h is Habit => h !== null);

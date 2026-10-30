@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card, ErrorBanner, GhostButton, PrimaryButton, ProgressBar, SecondaryButton } from '../components/ui';
+import { IconTile } from '../components/IconTile';
 import { todayKey } from '../lib/dates';
 import type { Nav } from '../navigation';
 import { completionFor, isDone, isScheduledOn } from '../services/streaks';
@@ -157,9 +158,10 @@ export default function RoutineDetail({ nav }: { nav: Nav }) {
                 <Text style={s.meta}>
                   Step {stepIndex + 1} of {ordered.length}
                 </Text>
-                <Text style={s.name}>
-                  {current.icon} {current.name}
-                </Text>
+                <View style={s.iconRow}>
+                  <IconTile icon={current.icon} color={current.color} size={44} />
+                  <Text style={[s.name, { flex: 1 }]}>{current.name}</Text>
+                </View>
                 {isDone(current, completionFor(current.id, today, completions)) ? (
                   <Text style={s.body}>Already done today. You can move on.</Text>
                 ) : (
@@ -221,9 +223,10 @@ export default function RoutineDetail({ nav }: { nav: Nav }) {
                     onPress={() => nav.push({ name: 'habitDetail', habitId: h.id })}
                     accessibilityRole="button"
                   >
-                    <Text style={s.name}>
-                      {h.icon} {h.name}
-                    </Text>
+                    <View style={s.iconRow}>
+                      <IconTile icon={h.icon} color={h.color} size={40} />
+                      <Text style={[s.name, { flex: 1 }]}>{h.name}</Text>
+                    </View>
                     <Text style={s.meta}>
                       {h.type === 'measurable' ? `${h.target} ${h.unit}` : h.timeSlot}
                     </Text>
@@ -243,6 +246,7 @@ const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: c.bg },
   content: { padding: spacing.lg, gap: spacing.lg },
   title: { fontSize: type.title, fontWeight: '600', color: c.ink },
+  iconRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   name: { fontSize: type.subtitle, fontWeight: '600', color: c.ink },
   meta: { fontSize: type.body, color: c.muted },
   body: { fontSize: type.body, color: c.muted, lineHeight: 20 },

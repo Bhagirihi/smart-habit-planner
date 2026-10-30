@@ -59,6 +59,8 @@ const FAQS: { q: string; a: string }[] = [
   { q: 'Why does the paywall not charge me?', a: 'This build runs in demo mode. No subscription products are configured, so the plan prices shown are demo samples only. Tapping a plan or Restore takes no payment and unlocks nothing.' },
   { q: 'Does the app work offline?', a: 'Yes. Everything is stored on your device and works without an internet connection or an account. There is no cloud backup in this build.' },
   { q: 'Why did my reminder not arrive?', a: 'Reminders need notification permission, and exact delivery times are not guaranteed by the platform. Check device notification settings, then save the habit again so its reminder can be rescheduled.' },
+  { q: 'What is the Habits grid?', a: 'The Habits grid shows every habit on one card, with its streak, today’s result, and the last 6 months as small squares. A square in the habit colour means that day was done. Open it from Today or Progress with the All habits button.' },
+  { q: 'How do I see the guided tour again?', a: 'Go to Settings, then tap Show guide again. The tour will appear the next time you open Today, and you can skip it at any time.' },
 ];
 
 export function HelpScreen({ nav }: { nav: Nav }) {
