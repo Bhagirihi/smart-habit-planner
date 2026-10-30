@@ -50,7 +50,7 @@ export function Settings({ nav, ui }: ScreenProps) {
             <View><Text style={{ color: c.muted, marginTop: spacing.sm }}>Are you sure? This is a preview — nothing will be deleted.</Text><Btn label="Yes, delete (preview only, no action)" onPress={() => setConfirmDelete(false)} /></View>
           )}
         </Card>
-        <Note>UI preview — static data only. No account, sync, or purchase is connected.</Note>
+        <Note>UI preview — static data only. No account, sync, or purchase is connected. Build v1.0.1 — tour frames are root-measured (SafeArea), widget is week-top. If this line does not say v1.0.1, you are running an older build.</Note>
       </ScrollView>
     </Screen>
   );

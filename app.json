@@ -22,7 +22,7 @@
                 "targetCellHeight": 4,
                 "targetCellWidth": 4
               },
-              "description": "Today's habit completion and last-7-days habit grid.",
+              "description": "Week at the top, then Habit completed today.",
               "displayName": "Smart Habit",
               "name": "HabitWidget"
             }
@@ -41,7 +41,7 @@
     "scheme": "smarthabitui",
     "slug": "smart-habit-ui",
     "userInterfaceStyle": "dark",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "icon": "./assets/icon.png",
     "splash": {
       "image": "./assets/splash.png",

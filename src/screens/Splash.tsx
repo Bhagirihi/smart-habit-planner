@@ -12,6 +12,7 @@ export default function Splash({ nav }: ScreenProps) {
         <Text style={{ color: c.ink, fontSize: 28, fontWeight: '800', marginTop: spacing.lg, textAlign: 'center' }}>Smart Habit</Text>
         <Text style={{ color: c.muted, fontSize: type.body, marginTop: spacing.sm, textAlign: 'center' }}>Build better habits. A healthier, happier you.</Text>
         <Text style={{ color: c.muted, fontSize: type.small, marginTop: spacing.xxl }}>UI preview — static data only, nothing is saved.</Text>
+        <Text style={{ color: c.muted, fontSize: type.small, marginTop: spacing.sm }}>v1.0.1 · Tour: root-measured frames · Widget: week-top</Text>
       </View>
       <Btn label="Continue as a returning user → Today" onPress={() => nav.goTab('today')} />
       <Btn label="Start onboarding → Welcome" ghost onPress={() => nav.push({ name: 'welcome' })} />

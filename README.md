@@ -33,6 +33,38 @@ no persistence, no sync, no notifications, and no purchases.
   copied. Verdant Nightfall is interpreted in our own words from
   the style review, using the Design.md starting tokens.
 
+## Review fix v1.0.1 (2026-10-30) — why the previous tour/widget fixes did not replicate on device
+
+- **Root cause found on review:** the previous tour fix converted window
+  rects by subtracting live insets and rendered the overlay as a direct
+  child of SafeAreaView. That is still ambiguous on Android: an absolute
+  child of SafeAreaView is positioned relative to SafeAreaView's own box,
+  whose origin is not guaranteed to equal the safe-area content origin on
+  every device — so the frame could land shifted again, in either
+  direction, even though the code looked correct. The widget side had the
+  same replication problem in a different form: a GitHub push does not
+  update a running Expo Go session or an installed build, and the app had
+  no visible version, so there was no way to tell on-device whether the
+  new code was even running.
+- **Tour fix (root-relative):** the overlay now lives INSIDE the root
+  `<View flex:1>` (inside SafeAreaView, so it still cannot go under a
+  system bar), and every target rect is converted by subtracting the
+  root view's own measured window rect at the same moment — measured,
+  never assumed from insets (inset conversion kept only as a fallback).
+  SafeAreaView is still used (provider + edges top/left/right/bottom);
+  frames/bubbles are clamped to the root size.
+- **Replication proof (new):** version bumped to **1.0.1**, shown on the
+  Splash screen and in Settings ("If this line does not say v1.0.1, you
+  are running an older build"). Widget picker description updated to
+  "Week at the top, then Habit completed today." To verify on device:
+  check v1.0.1 first, then tour steps 2/3/4, then Settings → Home widget
+  preview. If v1.0.1 is not shown, reload from the new code
+  (`npm start --clear` in Expo Go, or a fresh dev build for the real
+  home widget) — the fix cannot replicate on a stale bundle.
+- **Verified:** `tsc` 0, Android export passed, prebuild still generates
+  `HabitWidgetProvider` with the new widget description, generated
+  `android/` deleted. Not device-tested here.
+
 ## App icon and splash screen (2026-10-30)
 
 - **App icon:** `assets/icon.png` (1024×1024 PNG) — glowing

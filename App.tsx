@@ -28,12 +28,26 @@ const TABS: { id: TabName; label: string; icon: string }[] = [
 ];
 
 // AppInner runs INSIDE SafeAreaProvider, so useSafeAreaInsets() works.
-// The tour overlay lives inside SafeAreaView (see return below) — never
-// outside it, because a view outside SafeAreaView uses window coordinates
-// while the content (and its measured targets) sits inset, which is what
-// shifted every frame up by the inset on real Android devices.
+//
+// REVIEW FIX (why the previous fix did not replicate on device):
+// The previous fix converted window rects by subtracting live insets and
+// rendered the overlay as a direct child of SafeAreaView. That is still
+// ambiguous on Android: an absolute child of SafeAreaView is positioned
+// relative to SafeAreaView's own box, whose origin is NOT guaranteed to
+// equal the safe-area content origin on every device / SafeAreaView
+// implementation — so the frame could land shifted by the inset again,
+// in either direction, depending on the device. The only coordinate
+// system that cannot be wrong is the overlay's own parent:
+//   - the overlay now lives INSIDE the root <View flex:1> (inside
+//     SafeAreaView, so it still cannot go under a system bar),
+//   - every target rect is converted by subtracting the ROOT view's own
+//     window rect (measured at the same moment), NOT by subtracting
+//     insets from a theory about SafeAreaView.
+// rootRect is measured, never assumed. If root measurement fails, the
+// old inset conversion is kept as a fallback only.
 function AppInner() {
   const insets = useSafeAreaInsets();
+  const rootRef = useRef<any>(null);
   const [stack, setStack] = useState<Route[]>([{ name: 'splash' }]);
   const [sheet, setSheet] = useState(false);
   const [paywall, setPaywall] = useState(false);
@@ -125,19 +139,16 @@ function AppInner() {
     }
   }, [route.name, tourActive]);
 
-  // Measure the current step's target and convert it from WINDOW
-  // coordinates (measureInWindow) to SAFE-AREA coordinates (the overlay
-  // lives inside SafeAreaView, so its origin is window origin + insets).
-  // This effect re-runs when: the step/route changes, the live insets
-  // change (Android insets arrive asynchronously and differ per device —
-  // a rect measured before the real inset arrived is re-measured once it
-  // does), or a screen asks for a re-measure after a scroll settles.
-  // It tries several times (immediately, 150ms, 400ms) instead of relying
-  // on a single 350ms timeout, and keeps the LAST valid rect — layout,
-  // inset, and scroll settling all land at different times on different
-  // devices. A missing measurer, a zero-size rect, or a rect fully
-  // outside the safe area yields null, and TourTooltip falls back to
-  // the bottom bubble.
+  // Measure the current step's target in ROOT coordinates (see the
+  // AppInner comment above). Root = the <View flex:1> that wraps content
+  // + tabs and also contains the tour overlay, so a rect converted as
+  // (target window rect − root window rect) is exactly where the overlay
+  // must draw it, on every Android device, with no assumption about
+  // SafeAreaView's absolute-child origin, status-bar height, or notch.
+  // Re-runs on step/route/inset/re-measure changes, tries immediately,
+  // 150ms and 400ms, and keeps the LAST valid rect. A missing measurer,
+  // a zero-size rect, or a rect fully outside the root yields null, and
+  // TourTooltip falls back to the bottom bubble.
   useEffect(() => {
     if (!tourActive) { setTargetRect(null); return; }
     const step = TOUR_STEPS[tourStep] ?? TOUR_STEPS[0];
@@ -147,25 +158,30 @@ function AppInner() {
     const safeW = Math.max(1, W - insets.left - insets.right);
     const safeH = Math.max(1, H - insets.top - insets.bottom);
     let cancelled = false;
-    const attempt = () => {
+    const measureNode = (node: any): Promise<TourRect | null> => new Promise((resolve) => {
+      if (!node) return resolve(null);
+      node.measureInWindow((x: number, y: number, width: number, height: number) =>
+        resolve(width > 0 ? { x, y, width, height } : null));
+    });
+    const attempt = async () => {
       const measure = tourMeasurers.current.get(step.target!);
       if (!measure) { if (!cancelled) setTargetRect(null); return; }
-      measure().then((rect) => {
+      try {
+        const rect = await measure();
         if (cancelled || !rect) { if (!cancelled) setTargetRect(null); return; }
-        // Convert window -> safe-area coordinates.
-        const safeRect: TourRect = {
-          x: rect.x - insets.left,
-          y: rect.y - insets.top,
-          width: rect.width,
-          height: rect.height,
-        };
-        // Fully outside the safe area (e.g. scrolled off-screen) = no frame.
-        if (safeRect.x + safeRect.width < 0 || safeRect.x > safeW ||
-            safeRect.y + safeRect.height < 0 || safeRect.y > safeH) {
+        const rootRect = await measureNode(rootRef.current);
+        // Root-relative rect (preferred, exact) or inset fallback.
+        const safeRect: TourRect = rootRect
+          ? { x: rect.x - rootRect.x, y: rect.y - rootRect.y, width: rect.width, height: rect.height }
+          : { x: rect.x - insets.left, y: rect.y - insets.top, width: rect.width, height: rect.height };
+        const boundW = rootRect ? rootRect.width : safeW;
+        const boundH = rootRect ? rootRect.height : safeH;
+        if (safeRect.x + safeRect.width < 0 || safeRect.x > boundW ||
+            safeRect.y + safeRect.height < 0 || safeRect.y > boundH) {
           setTargetRect(null); return;
         }
         setTargetRect(safeRect);
-      }).catch(() => { if (!cancelled) setTargetRect(null); });
+      } catch { if (!cancelled) setTargetRect(null); }
     };
     attempt();
     const t1 = setTimeout(attempt, 150);
@@ -215,7 +231,7 @@ function AppInner() {
     <>
       <StatusBar style="light" />
       <SafeAreaView style={{ flex: 1, backgroundColor: c.bg }} edges={['top', 'left', 'right', 'bottom']}>
-        <View style={{ flex: 1 }}>
+        <View ref={rootRef} collapsable={false} style={{ flex: 1 }}>
           {content}
           {showTabs && (
             <View style={{ flexDirection: 'row', backgroundColor: c.surface, borderTopColor: c.border, borderTopWidth: 1, paddingTop: spacing.sm, paddingBottom: spacing.sm, alignItems: 'center' }}>
@@ -236,11 +252,14 @@ function AppInner() {
               ))}
             </View>
           )}
-        </View>
-          {/* Tour overlay INSIDE SafeAreaView, over content + tabs, in
-              safe-area coordinates (see Tooltip.tsx contract). It can
-              never sit under the status bar, notch, or system nav bar,
-              because SafeAreaView's bounds already exclude them. */}
+          {/* Tour overlay INSIDE the root View (which is inside
+              SafeAreaView), over content + tabs, in ROOT coordinates
+              (see the AppInner comment). Its origin is therefore exactly
+              the origin the target rects were converted to — this is
+              what makes the frame land on the element on every device,
+              instead of depending on SafeAreaView's absolute-child origin.
+              It still cannot sit under a system bar, because the root
+              View's bounds are the safe-area bounds. */}
           {tourActive && (
             <TourTooltip
               stepIndex={tourStep}
@@ -254,6 +273,7 @@ function AppInner() {
               onGoTo={goToTourDestination}
             />
           )}
+        </View>
         {sheet && (
           <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
             <View style={{ backgroundColor: c.surface, padding: spacing.xl, borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>

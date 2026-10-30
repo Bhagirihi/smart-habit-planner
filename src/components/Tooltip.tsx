@@ -6,21 +6,24 @@ import { Btn } from './ui';
 
 // Anchored tooltip-guided tour. Hand-rolled, no external tooltip library.
 //
-// COORDINATE CONTRACT (fixed after real-device screenshots showed every
-// frame shifted up by the safe-area inset):
+// COORDINATE CONTRACT (review fix — why the previous inset fix did not
+// replicate on device):
 //   - measureInWindow returns WINDOW coordinates (origin = top-left of the
 //     whole screen, including the status bar / notch area).
-//   - This overlay now lives INSIDE SafeAreaView, so its origin is the
-//     safe-area content origin (window origin + insets). App.tsx therefore
-//     converts every measured rect before passing it here:
-//         safeRect = { x: windowRect.x - insets.left,
-//                      y: windowRect.y - insets.top, width, height }
-//     and passes safeWidth/safeHeight = screen size minus insets. This
-//     component receives safeWidth/safeHeight as props and never calls
-//     Dimensions itself, and NEVER assumes a status-bar height, notch
-//     size, or navigation-bar height —
-//     all of those come from react-native-safe-area-context insets, which
-//     vary per Android device and update when the inset actually changes.
+//   - This overlay lives INSIDE the root <View flex:1> in App.tsx (which
+//     itself lives inside SafeAreaView, so it still cannot go under a
+//     system bar). App.tsx therefore converts every measured rect by
+//     subtracting the ROOT view's own measured window rect:
+//         rootRect = { x: windowRect.x - rootWindowRect.x,
+//                      y: windowRect.y - rootWindowRect.y, width, height }
+//     The root rect is MEASURED, never assumed from insets — so the frame
+//     lands on the element regardless of how a given Android device's
+//     SafeAreaView implements absolute-child positioning, status-bar
+//     height, or notch. The inset conversion is kept only as a fallback
+//     if the root view cannot be measured.
+//   - This component receives safeWidth/safeHeight (= root size) as props
+//     and never calls Dimensions itself, and NEVER assumes a status-bar
+//     height, notch size, or navigation-bar height.
 //   - Every frame and bubble is clamped to [0, safeWidth] x [0, safeHeight],
 //     so nothing can go under the status bar, notch, or system nav bar.
 //
