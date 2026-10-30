@@ -71,9 +71,9 @@ export interface TourStep {
 
 export const TOUR_STEPS: TourStep[] = [
   {
-    title: 'Your Today ring — here',
-    body: 'This ring shows how many of today\'s scheduled habits you have done, like 3 of 6. It only counts habits scheduled for today.',
-    target: 'today-ring',
+    title: 'Habit completed today — here',
+    body: 'The right side of this card shows how many of today\'s habits you have done, like 3 of 6. The left side shows your next habit. It only counts habits scheduled for today.',
+    target: 'today-completed',
     goToLabel: 'Go to Today',
     goTo: 'today',
   },

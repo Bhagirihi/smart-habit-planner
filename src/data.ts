@@ -10,7 +10,8 @@ export const HABITS: Habit[] = [
   { id: 'journal', name: 'Evening journal', icon: '✍️', color: '#FB7185', slot: 'evening', streak: 4, bestStreak: 9, rate: 62, target: '5 lines', reminder: '9:30 PM' },
   { id: 'walk', name: 'Walk 6,000 steps', icon: '👣', color: '#2DD4BF', slot: 'afternoon', streak: 15, bestStreak: 26, rate: 91, target: '6,000 steps', reminder: '2:00 PM' },
 ];
-// Session-start completed set: 3 of 5 shown as done on Today (matches the ring).
+// Session-start completed set: 3 of 6 shown as done on Today (matches the
+// "Habit completed today" card, which replaced the ring).
 export const INITIAL_DONE = new Set<string>(['water', 'run', 'walk']);
 export const ROUTINES: Routine[] = [
   { id: 'morning', name: 'Morning routine', startTime: '6:30 AM', percent: 67, habitIds: ['run', 'meditate', 'water'] },

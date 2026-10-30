@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { c, spacing, type } from '../theme';
-import { Btn, Card, IconTile, Note, Ring, Row, Screen, Title } from '../components/ui';
+import { Btn, Card, IconTile, Note, Row, Screen, Title } from '../components/ui';
 import { HABITS, WEEK_DATES, WEEK_DAYS, FREE_TIER_DAYS_LEFT, FREE_HABIT_LIMIT, FREE_ROUTINE_LIMIT } from '../data';
 import type { TourTarget } from '../navigation';
 import { TOUR_STEPS, tourMeasure } from '../components/Tooltip';
@@ -16,8 +16,18 @@ const SLOTS = [{ id: 'morning', label: 'Morning' }, { id: 'afternoon', label: 'A
 
 export default function Today({ nav, ui }: ScreenProps) {
   const doneCount = HABITS.filter((h) => ui.done.has(h.id)).length;
+  const pct = HABITS.length > 0 ? Math.round((doneCount / HABITS.length) * 100) : 0;
+  // Next habit: first habit not yet done, in slot order
+  // morning → afternoon → evening (within a slot, list order). At session
+  // start that is Meditate (morning, 7:00 AM) — water, run and walk are
+  // already done. Checking a habit off moves "next" to the following
+  // undone habit; when all are done the left side says so.
+  const slotOrder = ['morning', 'afternoon', 'evening'] as const;
+  const nextHabit = slotOrder
+    .flatMap((slot) => HABITS.filter((h) => h.slot === slot))
+    .find((h) => !ui.done.has(h.id)) ?? null;
   const scrollRef = useRef<any>(null);
-  const ringRef = useRef<any>(null);
+  const completedRef = useRef<any>(null);
   const freeTierRef = useRef<any>(null);
   const helpRef = useRef<any>(null);
   const firstHabitRef = useRef<any>(null);
@@ -37,7 +47,7 @@ export default function Today({ nav, ui }: ScreenProps) {
 
   useEffect(() => {
     const targets: [TourTarget, React.RefObject<View | null>][] = [
-      ['today-ring', ringRef],
+      ['today-completed', completedRef],
       ['today-free-tier', freeTierRef],
       ['today-help', helpRef],
       ['today-first-habit', firstHabitRef],
@@ -115,7 +125,7 @@ export default function Today({ nav, ui }: ScreenProps) {
         <View ref={freeTierRef} collapsable={false} style={{ alignSelf: 'flex-start', backgroundColor: c.tonal, borderColor: c.border, borderWidth: 1, borderRadius: 20, paddingVertical: 6, paddingHorizontal: 12, marginBottom: spacing.md }}>
           <Text style={{ color: c.muted, fontSize: type.small }}>Free tier · <Text style={{ color: c.primary, fontWeight: '800' }}>{FREE_TIER_DAYS_LEFT} days left</Text> · {FREE_HABIT_LIMIT} habits, {FREE_ROUTINE_LIMIT} routine</Text>
         </View>
-        <View ref={ringRef} collapsable={false}><Ring done={doneCount} total={HABITS.length} /></View>
+        {/* 1. Week strip, right below the free-tier pill (ring removed). */}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.lg }}>
           {WEEK_DAYS.map((d, i) => (
             <View key={d} style={{ alignItems: 'center', backgroundColor: i === 3 ? c.primary : c.tonal, borderColor: c.border, borderWidth: 1, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 6 }}>
@@ -124,10 +134,39 @@ export default function Today({ nav, ui }: ScreenProps) {
             </View>
           ))}
         </View>
+        {/* 3. Next habit (left) / Habit completed today (right), with a
+            progress bar below — count/total + bar, as in the reference. */}
+        <View style={{ backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 16, padding: spacing.md, marginBottom: spacing.lg }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <View style={{ flex: 1, marginRight: spacing.md }}>
+              <Text style={{ color: c.muted, fontSize: type.small, fontWeight: '700' }}>Next habit</Text>
+              {nextHabit ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm }}>
+                  <IconTile icon={nextHabit.icon} color={nextHabit.color} />
+                  <View style={{ flex: 1, marginLeft: spacing.sm }}>
+                    <Text style={{ color: c.ink, fontWeight: '800' }}>{nextHabit.name}</Text>
+                    <Text style={{ color: c.muted, fontSize: type.small }}>{nextHabit.target} · {nextHabit.reminder}</Text>
+                  </View>
+                </View>
+              ) : (
+                <Text style={{ color: c.ink, fontWeight: '800', marginTop: spacing.sm }}>All habits done 🎉</Text>
+              )}
+            </View>
+            {/* Tour target: this right side ALONE — the completed count. */}
+            <View ref={completedRef} collapsable={false} style={{ alignItems: 'flex-end' }}>
+              <Text style={{ color: c.muted, fontSize: type.small, fontWeight: '700', textAlign: 'right' }}>Habit completed today</Text>
+              <Text style={{ color: c.ink, fontSize: 24, fontWeight: '800', marginTop: spacing.sm }}>{doneCount} of {HABITS.length}</Text>
+              <Text style={{ color: c.primary, fontWeight: '800' }}>{pct}%</Text>
+            </View>
+          </View>
+          <View style={{ height: 8, borderRadius: 4, backgroundColor: '#334F49', marginTop: spacing.md, overflow: 'hidden' }}>
+            <View style={{ height: 8, width: `${pct}%`, backgroundColor: c.primary, borderRadius: 4 }} />
+          </View>
+        </View>
         {!ui.tourDismissed && (
           <Card>
             <Text style={{ color: c.ink, fontWeight: '700' }}>New here? Take the guided tour</Text>
-            <Text style={{ color: c.muted, marginTop: 4 }}>14 short tooltips, each highlighting the actual button or view it explains — the ring, free tier, ?, habit rows, ✓, +, tabs, routines, Progress, Weekly Report, the grid, payment Skip, and Settings.</Text>
+            <Text style={{ color: c.muted, marginTop: 4 }}>14 short tooltips, each highlighting the actual button or view it explains — the completed-today card, free tier, ?, habit rows, ✓, +, tabs, routines, Progress, Weekly Report, the grid, payment Skip, and Settings.</Text>
             <Btn label="Start guided tour" onPress={ui.startTour} />
             <Btn label="Not now" ghost onPress={ui.dismissTour} />
           </Card>

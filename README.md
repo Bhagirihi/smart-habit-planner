@@ -33,6 +33,22 @@ no persistence, no sync, no notifications, and no purchases.
   copied. Verdant Nightfall is interpreted in our own words from
   the style review, using the Design.md starting tokens.
 
+## Today layout (2026-10-30) — week top, no ring, next + completed card
+
+- Order on Today: header + greeting → free-tier pill → **week strip
+  (Mon–Sun, right below the free-tier pill)** → next/completed card →
+  tour intro card → habit slots. The big ring is **removed** from Today
+  (the shared `Ring` component in ui.tsx is still present but unused).
+- New card after the week strip: **left = Next habit** (first undone
+  habit in slot order morning → afternoon → evening; at session start
+  that is Meditate, 10 min · 7:00 AM — water, run and walk are already
+  done; checking a habit off moves "next" on, all done shows
+  "All habits done 🎉"), **right = Habit completed today** ("3 of 6",
+  50%), with a count/total progress bar below the row.
+- Tour updated to match: step 1 retargeted from the removed ring to the
+  right side of the new card (`today-completed`), and the intro card
+  text now says "completed-today card" instead of "ring".
+
 ## Review fix v1.0.1 (2026-10-30) — why the previous tour/widget fixes did not replicate on device
 
 - **Root cause found on review:** the previous tour fix converted window

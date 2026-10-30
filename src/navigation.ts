@@ -35,7 +35,7 @@ export interface Nav {
 }
 
 export type TourTarget =
-  | 'today-ring'
+  | 'today-completed'
   | 'today-free-tier'
   | 'today-help'
   | 'today-first-habit'
