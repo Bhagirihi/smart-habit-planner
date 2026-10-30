@@ -2,20 +2,23 @@ import React from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { c, radius, spacing, type } from '../theme';
 import { Back, Card, Note, Screen, Title } from '../components/ui';
-import { HABITS, WEEK_DAYS, FREE_TIER_DAYS_LEFT } from '../data';
+import { WEEK_DAYS } from '../data';
 import type { ScreenProps } from './props';
 
 // Mirrors the real widget in src/widgets/HabitWidget.tsx, in the same order:
 // week at the top (circles first, Mon–Sun labels below them, like the
 // reference image, no legend line), then "Habit completed today" below it.
 // No steps counter: this app tracks habits, not system steps.
+// STEP 6: this screen renders EXACTLY ui.widgetWeek — the same week
+// status, today index, count, %, and done names App sends to the placed
+// widget via updateSnapshot — so the preview and the home widget can
+// never disagree. In static mode that is the fallback week; in real
+// mode it is the week computed from Supabase completion history.
 // CONTRAST RULE: week circles and the progress track are never the same
 // colour as the card behind them. Done = bright green, today = amber,
 // missed = light grey-green, future = mid-tonal #334F49 (not near-black).
 // The phone frame is tonal #12312C, visibly different from the app
 // background #0A1211, so the frame itself can be found on a dark screen.
-
-const WEEK_STATUS = ['done', 'done', 'done', 'today', 'future', 'future', 'future'] as const;
 
 function weekCircle(status: string): { bg: string; mark: string; markColor: string } {
   if (status === 'done') return { bg: '#34D399', mark: '✓', markColor: c.onPrimary };
@@ -25,15 +28,18 @@ function weekCircle(status: string): { bg: string; mark: string; markColor: stri
 }
 
 export default function WidgetPreview({ nav, ui }: ScreenProps) {
+  const HABITS = ui.habits;
   const doneCount = HABITS.filter((h) => ui.done.has(h.id)).length;
-  const pct = Math.round((doneCount / HABITS.length) * 100);
+  const pct = HABITS.length > 0 ? Math.round((doneCount / HABITS.length) * 100) : 0;
   const doneNames = HABITS.filter((h) => ui.done.has(h.id)).map((h) => h.name).join(' · ');
+  const WEEK_STATUS = ui.widgetWeek.status;
+  const todayIndex = ui.widgetWeek.todayIndex;
   return (
     <Screen>
       <ScrollView showsVerticalScrollIndicator={false}>
         <Back label="‹ Back" onPress={nav.back} />
         <Title>Widget preview</Title>
-        <Note>Real Android home widget included: src/widgets/HabitWidget.tsx is registered in app.json (expo-widgets, enableAndroid). It still will NOT appear in Expo Go — install a development build, then long-press the home screen → Widgets → Smart Habit → place it. This screen shows the same layout as the real widget: week at the top, then Habit completed today.</Note>
+        <Note>Real Android home widget included: src/widgets/HabitWidget.tsx is registered in app.json (expo-widgets, enableAndroid). It still will NOT appear in Expo Go — install a development build, then long-press the home screen → Widgets → Smart Habit → place it. This screen shows the same layout and the same values as the real widget: week at the top, then Habit completed today. {ui.widgetWeek.source === 'real' ? 'Week shown from your real completion history — ticking a habit updates the placed widget too.' : 'Week shown is the static fallback (Supabase not configured or not signed in) — ticking a habit updates the count here, and the placed widget’s count on a dev build, but the week stays static until real history exists.'}</Note>
         {/* Phone-home-screen-style frame */}
         <View style={{ backgroundColor: c.tonal, borderColor: c.primary, borderWidth: 1, borderRadius: 28, padding: spacing.lg, marginBottom: spacing.md }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md }}>
@@ -56,7 +62,7 @@ export default function WidgetPreview({ nav, ui }: ScreenProps) {
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm }}>
               {WEEK_DAYS.map((d, i) => (
-                <Text key={d} style={{ color: i === 3 ? c.primary : c.muted, fontSize: type.small, fontWeight: i === 3 ? '800' : '400', width: 36, textAlign: 'center' }}>{d}</Text>
+                <Text key={d} style={{ color: i === todayIndex ? c.primary : c.muted, fontSize: type.small, fontWeight: i === todayIndex ? '800' : '400', width: 36, textAlign: 'center' }}>{d}</Text>
               ))}
             </View>
             {/* 2. HABIT COMPLETED TODAY, BELOW THE WEEK */}
@@ -65,13 +71,13 @@ export default function WidgetPreview({ nav, ui }: ScreenProps) {
             <View style={{ height: 8, borderRadius: 4, backgroundColor: '#334F49', marginVertical: spacing.sm, overflow: 'hidden' }}>
               <View style={{ height: 8, width: `${pct}%`, backgroundColor: c.primary, borderRadius: 4 }} />
             </View>
-            <Text style={{ color: c.muted, fontSize: type.small }}>Done: {doneNames || 'Nothing yet today'} · Free tier · {FREE_TIER_DAYS_LEFT} days left (static preview)</Text>
+            <Text style={{ color: c.muted, fontSize: type.small }}>Done: {doneNames || 'Nothing yet today'}</Text>
           </View>
           <Text style={{ color: c.muted, fontSize: type.small, textAlign: 'center', marginTop: spacing.md }}>Other apps would sit around this widget on a real home screen.</Text>
         </View>
         <Card>
           <Text style={{ color: c.ink, fontWeight: '700' }}>Get it on your home screen</Text>
-          <Text style={{ color: c.muted, marginTop: 4 }}>Install a development build (not Expo Go), then long-press the home screen → Widgets → Smart Habit → place it. The widget shows this week at the top and Habit completed today below it. See README for the build steps. The widget data is static in this UI build — it does not yet update from the app.</Text>
+          <Text style={{ color: c.muted, marginTop: 4 }}>Install a development build (not Expo Go), then long-press the home screen → Widgets → Smart Habit → place it. The widget shows this week at the top and Habit completed today below it. See README for the build steps. On a dev build, ticking a habit, saving a habit, signing in, or signing out sends a fresh snapshot to the placed widget — no reinstall needed. In Expo Go the widget cannot appear at all, so this screen is the only way to see it there.</Text>
         </Card>
       </ScrollView>
     </Screen>

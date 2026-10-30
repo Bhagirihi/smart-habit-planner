@@ -3,12 +3,14 @@ import { Text, View } from 'react-native';
 import { c, type } from '../theme';
 import { HABITS, last7Cell, last7Color } from '../data';
 
-// Compact 7-day grid used by the home-widget preview screen.
-// Days 0-5: static history. Day 6 (today): session done-set.
-export function HabitGrid7({ done }: { done: Set<string> }) {
+// Compact 7-day grid (currently unused by any screen; kept for reuse).
+// Days 0-5: static history. Day 6 (today): session done-set. When a
+// caller passes habits (e.g. ui.habits) the grid follows the live list;
+// otherwise it falls back to the static seed list.
+export function HabitGrid7({ done, habits = HABITS }: { done: Set<string>; habits?: typeof HABITS }) {
   return (
     <View>
-      {HABITS.map((h) => (
+      {habits.map((h) => (
         <View key={h.id} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
           <Text style={{ color: c.ink, fontSize: type.small, width: 110 }} numberOfLines={1}>{h.icon} {h.name}</Text>
           <View style={{ flexDirection: 'row', flex: 1, justifyContent: 'space-between' }}>

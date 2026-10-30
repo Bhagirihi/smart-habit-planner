@@ -47,7 +47,11 @@ export function heatColor(cell: number, color: string): string {
   return '#334F49';
 }
 export const WEEK_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-export const WEEK_DATES = ['27', '28', '29', '30', '31', '1', '2'];
+// NOTE (STEP 8, QA fix M1): there is deliberately NO WEEK_DATES here
+// anymore. The old hardcoded Oct 27 – Nov 2 week highlighted Thursday
+// on every day of the week. Week dates are now computed from the real
+// local date in src/screens/Today.tsx (via src/widgetData.ts helpers)
+// and in the widget week logic — never hardcoded.
 // Static demo value — real value comes from subscription later.
 // Do NOT present this as a real trial start/end date, subscription, or account.
 export const FREE_TIER_DAYS_LEFT = 12;

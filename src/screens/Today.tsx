@@ -2,7 +2,9 @@ import React, { useEffect, useRef } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { c, spacing, type } from '../theme';
 import { Btn, Card, IconTile, Note, Row, Screen, Title } from '../components/ui';
-import { HABITS, WEEK_DATES, WEEK_DAYS, FREE_TIER_DAYS_LEFT, FREE_HABIT_LIMIT, FREE_ROUTINE_LIMIT } from '../data';
+import { WEEK_DAYS, FREE_TIER_DAYS_LEFT, FREE_HABIT_LIMIT, FREE_ROUTINE_LIMIT } from '../data';
+import { addDaysString, mondayOfWeek, todayIndexInWeek } from '../widgetData';
+import { localToday } from '../streak';
 import type { TourTarget } from '../navigation';
 import { TOUR_STEPS, tourMeasure } from '../components/Tooltip';
 import type { ScreenProps } from './props';
@@ -15,6 +17,7 @@ const SLOTS = [{ id: 'morning', label: 'Morning' }, { id: 'afternoon', label: 'A
 // element itself (that is one way a frame can land on a neighbour).
 
 export default function Today({ nav, ui }: ScreenProps) {
+  const HABITS = ui.habits;
   const doneCount = HABITS.filter((h) => ui.done.has(h.id)).length;
   const pct = HABITS.length > 0 ? Math.round((doneCount / HABITS.length) * 100) : 0;
   // Next habit: first habit not yet done, in slot order
@@ -26,6 +29,15 @@ export default function Today({ nav, ui }: ScreenProps) {
   const nextHabit = slotOrder
     .flatMap((slot) => HABITS.filter((h) => h.slot === slot))
     .find((h) => !ui.done.has(h.id)) ?? null;
+  // STEP 8 (QA fix M1): the week strip is computed from the REAL local
+  // date — Monday-first week containing today, today highlighted —
+  // never from the old hardcoded WEEK_DATES / index 3. Day labels are
+  // Mon–Sun (WEEK_DAYS order); dates are the day-of-month numbers
+  // (no leading zeros, matching the old display).
+  const todayStr = localToday();
+  const weekMonday = mondayOfWeek(todayStr);
+  const weekDates = [0, 1, 2, 3, 4, 5, 6].map((i) => addDaysString(weekMonday, i));
+  const todayIndex = todayIndexInWeek(todayStr);
   const scrollRef = useRef<any>(null);
   const completedRef = useRef<any>(null);
   const freeTierRef = useRef<any>(null);
@@ -125,12 +137,13 @@ export default function Today({ nav, ui }: ScreenProps) {
         <View ref={freeTierRef} collapsable={false} style={{ alignSelf: 'flex-start', backgroundColor: c.tonal, borderColor: c.border, borderWidth: 1, borderRadius: 20, paddingVertical: 6, paddingHorizontal: 12, marginBottom: spacing.md }}>
           <Text style={{ color: c.muted, fontSize: type.small }}>Free tier · <Text style={{ color: c.primary, fontWeight: '800' }}>{FREE_TIER_DAYS_LEFT} days left</Text> · {FREE_HABIT_LIMIT} habits, {FREE_ROUTINE_LIMIT} routine</Text>
         </View>
-        {/* 1. Week strip, right below the free-tier pill (ring removed). */}
+        {/* 1. Week strip, right below the free-tier pill (ring removed).
+            Dates + highlight come from the real local date (above). */}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.lg }}>
           {WEEK_DAYS.map((d, i) => (
-            <View key={d} style={{ alignItems: 'center', backgroundColor: i === 3 ? c.primary : c.tonal, borderColor: c.border, borderWidth: 1, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 6 }}>
-              <Text style={{ color: i === 3 ? c.onPrimary : c.muted, fontSize: type.small, fontWeight: '700' }}>{d}</Text>
-              <Text style={{ color: i === 3 ? c.onPrimary : c.ink, fontWeight: '700' }}>{WEEK_DATES[i]}</Text>
+            <View key={d} style={{ alignItems: 'center', backgroundColor: i === todayIndex ? c.primary : c.tonal, borderColor: c.border, borderWidth: 1, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 6 }}>
+              <Text style={{ color: i === todayIndex ? c.onPrimary : c.muted, fontSize: type.small, fontWeight: '700' }}>{d}</Text>
+              <Text style={{ color: i === todayIndex ? c.onPrimary : c.ink, fontWeight: '700' }}>{Number(weekDates[i]!.split('-')[2]).toString()}</Text>
             </View>
           ))}
         </View>
@@ -140,7 +153,9 @@ export default function Today({ nav, ui }: ScreenProps) {
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <View style={{ flex: 1, marginRight: spacing.md }}>
               <Text style={{ color: c.muted, fontSize: type.small, fontWeight: '700' }}>Next habit</Text>
-              {nextHabit ? (
+              {HABITS.length === 0 ? (
+                <Text style={{ color: c.ink, fontWeight: '800', marginTop: spacing.sm }}>No habits yet — add your first habit below.</Text>
+              ) : nextHabit ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm }}>
                   <IconTile icon={nextHabit.icon} color={nextHabit.color} />
                   <View style={{ flex: 1, marginLeft: spacing.sm }}>
@@ -191,7 +206,7 @@ export default function Today({ nav, ui }: ScreenProps) {
                     <IconTile icon={h.icon} color={h.color} />
                     <View style={{ flex: 1, marginLeft: spacing.md }}>
                       <Text style={{ color: c.ink, fontWeight: '700' }}>{h.name}</Text>
-                      <Text style={{ color: c.muted, fontSize: type.small }}>🔥 {h.streak}-day streak · {h.target} · {h.reminder}</Text>
+                      <Text style={{ color: c.muted, fontSize: type.small }}>🔥 {ui.streaks[h.id] ?? h.streak}-day streak · {h.target} · {h.reminder}</Text>
                     </View>
                     <Pressable ref={isFirst ? firstCheckRef : undefined} collapsable={false} onPress={() => ui.toggleDone(h.id)} style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: done ? h.color : c.surface, borderColor: h.color, borderWidth: 1, alignItems: 'center', justifyContent: 'center' }}>
                       <Text style={{ color: done ? c.onPrimary : h.color, fontWeight: '800', fontSize: 18 }}>{done ? '✓' : '○'}</Text>
@@ -203,7 +218,7 @@ export default function Today({ nav, ui }: ScreenProps) {
           );
         })}
         <Row><Btn label="Habits Grid" ghost onPress={() => nav.push({ name: 'habitsGrid' })} /><Btn label="Weekly Report" ghost onPress={() => nav.push({ name: 'weeklyReport' })} /></Row>
-        <Note>UI preview: checking a habit only changes this session. Reloading resets to the static data.</Note>
+        <Note>{ui.supabaseConfigured ? 'Supabase is connected: checking a habit saves it to your project.' : 'UI preview: checking a habit only changes this session. Reloading resets to the static data.'}</Note>
       </ScrollView>
     </Screen>
   );
