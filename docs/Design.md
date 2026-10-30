@@ -1,12 +1,31 @@
 # Design.md — Smart Habit & Routine Planner
 
-## Design system: Deep Teal Console Mobile (single dark theme)
+## Design system: Verdant Nightfall (chosen 2026-10-30, single dark theme)
 
-This is the design system already in the v2 code (`src/theme.ts`). Do not
-introduce a light theme, gradients, or a second palette without a new
-decision. The system is dark-only by design: it reads well at night,
-keeps habit colours legible, and matches the reference feel the user
-likes (HabitKit's pure-black dark mode, TickOff's dark mode) without
+**Decision 2026-10-30:** after side-by-side Today-screen mockups,
+the user chose **Verdant Nightfall over Deep Teal Console**.
+Verdant Nightfall is the new direction for all new UI work.
+Deep Teal Console remains the system already in the v2 code
+(`src/theme.ts`) — it is the starting point, not the target.
+
+Verdant Nightfall direction (from the Sleek style review, in our
+own words — no Sleek DESIGN.md file was downloaded or copied):
+deep dark green/black forest-night background, glowing
+emerald-green accents, softly rounded cards with a subtle glow,
+large calm numerals, clean modern typography, premium and calm.
+It keeps the dark-teal brand continuity, but softens the
+console/developer feel into something more consumer-premium.
+
+Until the user supplies exact Verdant tokens, use the Deep Teal
+tokens below as the starting palette (background `#0A1211`,
+primary `#2DD4BF`, accent `#34D399`) and apply the Verdant
+treatment on top: emerald glow on the progress ring, primary
+button, and selected day; larger, calmer numerals for headline
+figures; softer card rounding. Do not introduce a light theme,
+gradients, or a second palette without a new decision. The system
+is dark-only by design: it reads well at night, keeps habit
+colours legible, and matches the reference feel the user likes
+(HabitKit's pure-black dark mode, TickOff's dark mode) without
 copying any competitor's assets, logos, or text.
 
 ## Colour tokens (exact)
@@ -44,7 +63,10 @@ violet `#A78BFA`, amber `#FBBF24`, coral `#FB7185`, green `#34D399`.
 ## Rules
 
 1. **No gradients.** Flat surfaces only.
-2. **No card shadows**, except the floating central `+` button.
+2. **No card shadows**, except the floating central `+` button —
+   Verdant exception: a subtle emerald *glow* (not a drop shadow)
+   is allowed on the progress ring, primary button, and selected
+   day only. Every other card stays flat.
 3. **No red failure screens.** A missed day is shown neutrally
    (surfaceAlt), not as shame. Planned skips never break a streak.
 4. **One job per screen.** Today does one job: what is due today, and

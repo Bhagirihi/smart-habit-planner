@@ -2,7 +2,8 @@
 
 Build routines, track habits, set reminders, visualise streaks, and
 get personalised weekly suggestions. Offline-first, no account
-required, single dark theme (Deep Teal Console).
+required, single dark theme — **Verdant Nightfall** (chosen
+2026-10-30 over Deep Teal Console; see Design.md).
 
 ## Quick start
 
