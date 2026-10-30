@@ -84,6 +84,51 @@ no persistence, no sync, no notifications, and no purchases.
   The same 12-days line appears on Payment Setup so the two
   stay consistent.
 
+## Tooltip-guided tour (2026-10-30)
+
+A hand-rolled tooltip tour, no external tooltip library. The
+reusable bubble is `src/components/Tooltip.tsx` (title, 1–2
+short lines, step dots "Step X of 10", Back / Skip / Done,
+close X, and a "Go to …" button where a step has a
+destination), styled in Verdant Nightfall with 48dp touch
+targets. The tour overlay lives in `App.tsx`, above the
+content, so it works with the custom stack: Next/Back only
+move the bubble (they never push a route, so there are no
+dead-ends or duplicate stack entries), while "Go to …"
+navigates once (guarded against pushing the current route)
+and the tour stays open on top. Android back closes the tour
+before popping the stack. Skip and X dismiss it at any step.
+
+How to start / replay it (session only — reload resets it,
+same as the rest of this preview):
+- Today: tap the **?** button at the top right, or the
+  "Start guided tour" button on the intro card (the old
+  one-line "Tour: tap a row…" card was replaced by this —
+  there is only one tour now; "Not now" dismisses the card
+  for the session).
+- Settings → **How to use this app — guided tour**
+- Settings → Help → **Start guided tour**
+
+Tour steps (each 2 short sentences max, no prices, no real
+accounts or data invented):
+1. Your Today ring — what "3 of 6" means (Go to Today)
+2. Checking off a habit — row → detail, ✓/○ toggles (Today)
+3. The + button — Add habit vs Create routine
+4. Routines — list, detail, step-by-step Run Mode
+   (Next/Restart) (Go to Routines)
+5. Progress — week/month toggle, Habit Score, heatmaps
+   (Go to Progress)
+6. Weekly Report — suggestions with Apply/Dismiss
+   (Go to Weekly Report)
+7. Habits Grid — what the coloured cells mean
+   (Go to Habits Grid)
+8. Free tier and payment — 5 habits, 1 routine, 12 days left
+   (static demo); Payment Setup has Skip, Paywall is under
+   Settings → Upgrade (Go to Payment Setup)
+9. Settings — account, notifications, Help, Home widget
+   preview (Go to Settings)
+10. You're ready — replay from Settings or the ? on Today
+
 ## Theme — Verdant Nightfall
 
 Deep dark green/black forest-night background, glowing emerald
@@ -208,6 +253,23 @@ home_screen, `res/values/expo_widgets.xml` names it
 `ExpoWidgetsAppWidgetProvider("HabitWidget")`. The widget has
 NOT been tested on a real device from this VM — on-device
 rendering is untested until you install a dev build.
+
+## Verification (2026-10-30, tooltip-guided tour)
+
+- `npx tsc --noEmit`: 0 errors.
+- `npx expo export --platform android`: passed, 642 modules,
+  bundle 1.6 MB, `dist/` total 1,644,100 bytes. `dist/` was
+  deleted afterwards and verified absent.
+- Route walk: all 20 stack cases in `App.tsx` still present
+  (splash, welcome, goal, starter, today, habitDetail,
+  habitForm, routines, routineDetail, routineForm, progress,
+  weeklyReport, settings, habitsGrid, login, signup, forgot,
+  widgetPreview, paymentSetup, legal), plus the Paywall
+  overlay and the new tour overlay (not a stack route).
+  Tour entry points: Today ? button, Today intro card,
+  Settings → guided tour, Help → Start guided tour.
+- No device testing was done. On-device behaviour is untested.
+- No code was pushed to GitHub. Not a production app.
 
 ## Verification (2026-10-30, real Android widget)
 

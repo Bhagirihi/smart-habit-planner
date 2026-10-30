@@ -44,6 +44,7 @@ export interface UiState {
   setRunStep: (n: number) => void;
   tourDismissed: boolean;
   dismissTour: () => void;
+  startTour: () => void;
   notifEnabled: boolean;
   toggleNotif: () => void;
 }

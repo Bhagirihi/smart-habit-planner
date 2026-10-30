@@ -12,7 +12,12 @@ export default function Today({ nav, ui }: ScreenProps) {
   return (
     <Screen>
       <ScrollView showsVerticalScrollIndicator={false}>
-        <Title>Good morning, Dhruv</Title>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+          <View style={{ flex: 1 }}><Title>Good morning, Dhruv</Title></View>
+          <Pressable onPress={ui.startTour} style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ color: c.primary, fontSize: 20, fontWeight: '800' }}>?</Text>
+          </Pressable>
+        </View>
         <Text style={{ color: c.primary, fontSize: type.body, marginBottom: spacing.sm }}>Keep going, you're doing great!</Text>
         <View style={{ alignSelf: 'flex-start', backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 20, paddingVertical: 6, paddingHorizontal: 12, marginBottom: spacing.md }}>
           <Text style={{ color: c.muted, fontSize: type.small }}>Free tier · <Text style={{ color: c.primary, fontWeight: '800' }}>{FREE_TIER_DAYS_LEFT} days left</Text> · {FREE_HABIT_LIMIT} habits, {FREE_ROUTINE_LIMIT} routine</Text>
@@ -28,9 +33,10 @@ export default function Today({ nav, ui }: ScreenProps) {
         </View>
         {!ui.tourDismissed && (
           <Card>
-            <Text style={{ color: c.ink, fontWeight: '700' }}>Tour: tap a row for detail, tap ✓ to check off</Text>
-            <Text style={{ color: c.muted, marginTop: 4 }}>The ring shows done-of-scheduled. Tap + to add a habit or routine.</Text>
-            <Btn label="Got it" onPress={ui.dismissTour} />
+            <Text style={{ color: c.ink, fontWeight: '700' }}>New here? Take the guided tour</Text>
+            <Text style={{ color: c.muted, marginTop: 4 }}>10 short tooltips explain the ring, habits, routines, Progress, Weekly Report, the grid, free tier, and Settings.</Text>
+            <Btn label="Start guided tour" onPress={ui.startTour} />
+            <Btn label="Not now" ghost onPress={ui.dismissTour} />
           </Card>
         )}
         {SLOTS.map((slot) => {

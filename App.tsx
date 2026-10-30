@@ -18,6 +18,7 @@ import { Forgot, Login, Signup } from './src/screens/AuthScreens';
 import WidgetPreview from './src/screens/WidgetPreview';
 import PaymentSetup from './src/screens/PaymentSetup';
 import Paywall from './src/components/Paywall';
+import { TOUR_STEPS, TourTooltip, type TourDestination } from './src/components/Tooltip';
 
 const TABS: { id: TabName; label: string; icon: string }[] = [
   { id: 'today', label: 'Today', icon: '🏠' },
@@ -34,6 +35,8 @@ export default function App() {
   const [suggestions, setSuggestions] = useState<Suggestion[]>(SUGGESTIONS);
   const [runStep, setRunStep] = useState(0);
   const [tourDismissed, setTourDismissed] = useState(false);
+  const [tourActive, setTourActive] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
   const [notifEnabled, setNotifEnabled] = useState(true);
 
   const route = stack[stack.length - 1] ?? { name: 'splash' };
@@ -54,6 +57,7 @@ export default function App() {
     applySuggestion: (id) => setSuggestions((prev) => prev.map((s) => (s.id === id ? { ...s, state: 'applied' } : s))),
     dismissSuggestion: (id) => setSuggestions((prev) => prev.map((s) => (s.id === id ? { ...s, state: 'dismissed' } : s))),
     runStep, setRunStep, tourDismissed, dismissTour: () => setTourDismissed(true),
+    startTour: () => { setTourStep(0); setTourActive(true); },
     notifEnabled, toggleNotif: () => setNotifEnabled((v) => !v),
   };
 
@@ -61,11 +65,21 @@ export default function App() {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (sheet) { setSheet(false); return true; }
       if (paywall) { setPaywall(false); return true; }
+      if (tourActive) { setTourActive(false); return true; }
       if (stack.length > 1) { back(); return true; }
       return false;
     });
     return () => sub.remove();
-  }, [sheet, paywall, stack.length, back]);
+  }, [sheet, paywall, tourActive, stack.length, back]);
+
+  const goToTourDestination = useCallback((destination: TourDestination) => {
+    // Guarded: never push a route that is already on top, never duplicate a tab.
+    if (destination === 'today' || destination === 'routines' || destination === 'progress' || destination === 'settings') {
+      if (route.name !== destination) goTab(destination);
+    } else if (route.name !== destination) {
+      push({ name: destination });
+    }
+  }, [route.name, goTab, push]);
 
   let content: React.ReactNode = null;
   switch (route.name) {
@@ -130,6 +144,16 @@ export default function App() {
           </View>
         )}
         {paywall && <Paywall onClose={() => setPaywall(false)} />}
+        {tourActive && (
+          <TourTooltip
+            stepIndex={tourStep}
+            onNext={() => { if (tourStep >= TOUR_STEPS.length - 1) setTourActive(false); else setTourStep((s) => s + 1); }}
+            onBack={() => setTourStep((s) => Math.max(0, s - 1))}
+            onSkip={() => setTourActive(false)}
+            onClose={() => setTourActive(false)}
+            onGoTo={goToTourDestination}
+          />
+        )}
       </SafeAreaView>
     </SafeAreaProvider>
   );

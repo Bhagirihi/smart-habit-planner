@@ -27,6 +27,7 @@ export function Settings({ nav, ui }: ScreenProps) {
           <Text style={{ color: c.muted, marginTop: spacing.sm }}>Evening review time: 9:00 PM (static preview)</Text>
         </Card>
         <Text style={{ color: c.ink, fontWeight: '700', marginBottom: spacing.sm }}>Help & Legal</Text>
+        <SettingRow label="How to use this app — guided tour" onPress={ui.startTour} />
         <SettingRow label="Help — Show guide again" onPress={() => nav.push({ name: 'legal', page: 'Help' })} />
         <SettingRow label="Payment setup (optional, skippable)" onPress={() => nav.push({ name: 'paymentSetup' })} />
         <SettingRow label="Home widget preview" onPress={() => nav.push({ name: 'widgetPreview' })} />
@@ -48,7 +49,7 @@ export function Settings({ nav, ui }: ScreenProps) {
   );
 }
 
-export function Legal({ nav }: ScreenProps) {
+export function Legal({ nav, ui }: ScreenProps) {
   const route = nav.route;
   const page = route.name === 'legal' ? route.page : 'Help';
   const body = page === 'Terms'
@@ -62,7 +63,7 @@ export function Legal({ nav }: ScreenProps) {
       <Title>{page}</Title>
       <Sub>Sub-screen, reached from Settings. Static preview text only.</Sub>
       <Card><Text style={{ color: c.ink, fontSize: type.body }}>{body}</Text></Card>
-      {page === 'Help' && <Btn label="Show guide again (goes to Today)" onPress={() => nav.goTab('today')} />}
+      {page === 'Help' && <Btn label="Start guided tour" onPress={ui.startTour} />}
     </Screen>
   );
 }
