@@ -32,13 +32,15 @@ Package name (v2): `com.smarthabit.planner.v2`.
   "Show guide again"), Legal (Terms / Privacy / Help), and a two-step
   Delete my data flow.
 
-## Screens (15 routes)
+## Screens (18 routes)
 
 Splash; Onboarding Welcome, Goal + Wake Time, Starter Habits; Today,
 Habit Detail, Add/Edit Habit; Routines, Routine Detail + Run Mode,
 Create/Edit Routine; Progress, Weekly Report, Settings, Habits Grid;
-Paywall as an overlay. Only Today, Routines, Progress, and Settings
-are bottom tabs.
+Login, Signup, Forgot Password (2026-10-30 decision: email +
+Google via Supabase, optional — offered after onboarding with
+Skip, and from Settings); Paywall as an overlay. Only Today,
+Routines, Progress, and Settings are bottom tabs.
 
 ## Stack
 
@@ -56,7 +58,9 @@ advanced charts, up to 3 reminders per habit, widgets, and backup/sync.
 in v2. The paywall shows no prices, purchase/restore return
 "not configured", and Premium is never unlocked by a fake purchase.
 No price in this app may be hard-coded; prices must come from real
-configured products.
+configured products. The same rule applies to Auth: until Supabase
++ Google OAuth are configured, Login/Signup show "not configured"
+and no sign-in is faked.
 
 ## Verification (v2, last verified state)
 

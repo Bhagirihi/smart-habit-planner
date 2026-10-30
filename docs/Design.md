@@ -85,6 +85,19 @@ the picker, Today, grid, and detail stay in sync.
 - **Sheets / overlays:** action sheet first, then paywall, then stack
   pop, then exit — this is the Android BackHandler order.
 
+## Auth screens (2026-10-30)
+
+Login, Signup, and Forgot Password use the same Deep Teal tokens,
+spacing, and type as every other screen — one exception: the
+"Continue with Google" button follows Google's sign-in branding
+(white background, Google "G", "Continue with Google" text), not
+the teal primary button style. Email fields use the standard
+surface card + border, password fields have show/hide, and errors
+are shown in error `#F43F5E` text under the field, never as a
+shaming full-screen error. A Skip button is always visible on the
+post-onboarding auth offer, in muted text, so optional really
+means optional.
+
 ## Screens and their visual job
 
 See AppFlow.md for the full map. In short: Splash is text + leaf mark

@@ -116,7 +116,31 @@ Weekly Report — reached from Progress / Today (per spec cadence, Sunday).
    deleted → next launch goes to Welcome (onboarding is reachable
    again only this way).
 
-## Journey 10 — Android back button
+## Journey 10 — Login / Signup (optional, 2026-10-30)
+
+1. After onboarding, the user is offered "Sync & backup" with two
+   choices: Login/Signup, or Skip. Skip goes straight to Today;
+   the app works fully offline.
+2. Login: email + password → Today (signed in). Or tap
+   "Continue with Google" → Google consent → back to the app →
+   Today (signed in). No new account is created silently: a Google
+   sign-in for a new user creates a Supabase account, and that is
+   shown as "Welcome" state, not hidden.
+3. Signup: email + password → confirmation state ("check your
+   email" if email confirmation is on in Supabase) → Login once
+   confirmed. Or "Continue with Google" as above.
+4. Forgot Password (from Login): enter email → reset link sent →
+   "check your email" state → set a new password via the link →
+   back to Login.
+5. Settings → Account: shows signed-in email (or "Not signed in"),
+   Sign out, and Delete account (two-step, explicit confirm).
+   Signing out never deletes local habits; it only ends the
+   session and returns sync status to local-only.
+6. If Auth is not configured yet: Login/Signup show
+   "not configured" and do nothing else. They must not show a
+   fake Google account or a fake success screen.
+
+## Journey 11 — Android back button
 
 Order, every time: close action sheet → close paywall overlay →
 pop the stack → exit only when on a root tab screen. Never exit

@@ -64,6 +64,20 @@ Future (only when the corresponding service is really configured):
   then the stub stays: empty products, `isPremium()` false.
 - Supabase: project URL + key, wired into `src/services/sync.ts`.
   Until then the stub stays: local-only, nothing uploaded.
+- Supabase Auth + Google sign-in (2026-10-30 decision):
+  1. Create a Supabase project, enable Auth, enable the Email
+     provider, and set the email templates + redirect URLs.
+  2. In Google Cloud, create an OAuth client (Android + Web as
+     Supabase requires), add the Supabase callback URL as an
+     authorised redirect URI, and copy the client ID/secret into
+     the Supabase Google provider settings only — never into
+     chat, code, or docs.
+  3. In the app, configure the Supabase URL + anon key (public,
+     not secret) and the app's redirect scheme, then test:
+     email signup → login, Google sign-in → return to app,
+     forgot password → reset link.
+  Until all three steps are done, Login/Signup show
+  "not configured" and must not be demoed as working.
 
 Never paste a secret, service-account JSON, or API key into chat,
 code, docs, or memory. Stubs stay credential-free.

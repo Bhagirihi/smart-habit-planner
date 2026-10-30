@@ -72,11 +72,29 @@ gate passes.
 - Gate: device run done, or the release is explicitly labelled
   "not device-tested".
 
+## Phase 4b — Auth (after Phase 4, before store release)
+
+Added 2026-10-30 at the user's decision (email + Google, Supabase,
+optional). Do not start this phase until Phase 4 gates pass.
+
+- Supabase project + Auth enabled, email templates set, Google
+  provider + Google Cloud OAuth client configured (by the user,
+  no secrets in code/docs).
+- `src/services/auth.ts` (stub first, then real), Login / Signup /
+  Forgot Password screens, Settings → Account, secure-storage
+  session restore, offline-first merge rule (never wipe local on
+  first login).
+- Gate: email signup → confirm → login works; Google sign-in
+  returns to the app with a session; Skip still reaches Today
+  offline; sign-out keeps local habits; unconfigured state shows
+  "not configured" and fakes nothing.
+
 ## After MVP (explicitly out of scope above)
 
 1. Real RevenueCat products + prices (only then does the paywall
    show prices or unlock Premium).
-2. Supabase sync / backup, with a real account and privacy policy.
+2. Supabase sync / backup (auth in Phase 4b is the prerequisite),
+   with a real account and privacy policy.
 3. Widgets (HabitNow/HabitKit pattern), preset habit library with
    fresh wording, 30-day challenge journeys (Tick It pattern).
 4. Journey notes/timeline (TickOff pattern), focus timer

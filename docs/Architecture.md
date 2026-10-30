@@ -98,9 +98,37 @@ scheduled-missed resets to 0, planned skip and unscheduled days do
 not break a streak, measurable counts only at 100% of target, midnight
 rollover marks undone scheduled habits missed.
 
+## Auth (2026-10-30 decision, not yet built)
+
+- **Provider: Supabase Auth.** Email + password and Google sign-in
+  both go through Supabase Auth — one provider, not two separate
+  auth systems.
+- **Google sign-in path:** app → Supabase Auth (Google provider) →
+  Google OAuth consent → back to the app via the configured
+  redirect URL → Supabase session. The Google Cloud OAuth client
+  (client ID, redirect URIs) is configured by the user in Google
+  Cloud + Supabase dashboard; the client secret, if any, lives in
+  Supabase only and is never pasted into chat, code, or docs.
+- **New service (when built):** `src/services/auth.ts` — sign up,
+  sign in, sign in with Google, sign out, password reset, session
+  restore on launch. It wraps Supabase Auth only; it must not
+  invent its own password storage.
+- **Session storage:** Supabase session token in secure storage
+  (`expo-secure-store` or equivalent), NOT in SQLite with habit
+  data and NOT in plain AsyncStorage. On launch, restore session
+  silently; if restore fails, the user stays logged out and the
+  app still works offline.
+- **Local data on login:** habits/completions stay local-first.
+  A future sync layer merges by habit id and by
+  `UNIQUE(habit_id, date)`; it must never delete local rows on
+  first login. Sync itself is still a later phase (see plan.md).
+- **Until configured:** `auth.ts` is a stub like `subscription.ts`
+  and `sync.ts`: it reports "not configured", Login/Signup show
+  that state, and no sign-in is faked.
+
 ## Prepared but NOT connected
 
-- **Supabase (`sync.ts`):** stub only. No URL, key, or account. Nothing
+- **Supabase (`sync.ts` + Auth):** stub only. No URL, key, or account. Nothing
   is uploaded. Settings shows local-only status + "Continue offline".
 - **RevenueCat (`subscription.ts`):** stub only. `AVAILABLE_PRODUCTS`
   is empty, `isPremium()` is always false, purchase/restore return

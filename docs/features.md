@@ -102,6 +102,31 @@ in MVP (explicit non-goal).
   Legal links (Terms / Privacy / Help sub-screens).
 - ✅ No account required. Data stays on device. Settings shows
   local-only sync status + "Continue offline".
+- 🔜 Auth (2026-10-30 decision, not yet built): Login, Signup, and
+  Forgot Password screens, in Deep Teal, with:
+  - Email + password login/signup, with validation, show/hide
+    password, and error text for wrong password / existing account /
+    unconfirmed email (no invented error codes).
+  - "Continue with Google" button on both Login and Signup, via
+    Supabase Auth Google provider. The Google button follows
+    Google's sign-in branding (white button, Google "G", "Continue
+    with Google" text) — it is not restyled into a teal button, and
+    no Google logo asset is copied into the repo without following
+    Google's branding rules.
+  - Forgot Password: enter email → reset link sent → "check your
+    email" state. No password is ever emailed or shown.
+  - Optional flow: offered after onboarding with Skip, and from
+    Settings → Account. Signing in never deletes local habits:
+    offline-first local data is kept, and sync (when built) merges
+    by habit id / date, never wipes local data on first login.
+  - Sign out + Delete account in Settings (delete account is a
+    two-step flow, like Delete my data, and must be explicitly
+    confirmed).
+  - Auth is FREE, not Premium. Login does not unlock Premium and
+    does not bypass the 5-habit / 1-routine free gates.
+  - Until Supabase + Google OAuth are configured, these screens
+    show "not configured" and do nothing — no fake login, no fake
+    Google account, no hard-coded test user.
 - ✅ Two-step Delete my data (resets onboarding, so onboarding
   screens become reachable again).
 - 🔜 Real RevenueCat products, real prices, restore purchases.

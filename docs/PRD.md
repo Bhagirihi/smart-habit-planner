@@ -54,8 +54,9 @@ logos, screenshots, or text are copied from them.
 
 ## 5. Scope: screens
 
-15 routes in the current v2 code: the original 14-screen spec plus the
-Habits Grid added 2026-10-30.
+18 routes: the original 14-screen spec plus the Habits Grid added
+2026-10-30, plus 3 auth screens added 2026-10-30 at the user's
+decision (email login/signup + Google sign-in, both via Supabase).
 
 1. Splash
 2. Onboarding — Welcome
@@ -72,6 +73,10 @@ Habits Grid added 2026-10-30.
 13. Paywall (overlay)
 14. Settings (tab)
 15. Habits Grid (from Today and Progress; tabs hidden, as on detail screens)
+16. Login (email + password, plus "Continue with Google" button)
+17. Signup (email + password, plus "Continue with Google" button)
+18. Forgot Password (reset link by email; optional screen, included
+    in the count so the total is honest)
 
 Only Today, Routines, Progress, and Settings are bottom tabs.
 Splash + the 3 onboarding screens are launch-only; they are
@@ -90,6 +95,19 @@ revisitable only after Settings → Delete my data resets onboarding.
 - **Free limits (in code):** 5 habits, 1 routine. The 6th habit or 2nd
   routine opens the Paywall overlay. A draft opened before the
   paywall must survive closing it.
+- **Auth is optional, never a gate (2026-10-30 decision):** the app
+  works fully offline with no account. Login/Signup are offered
+  after onboarding (with a Skip button) and from Settings, for
+  backup/sync only. No screen, habit, or routine is locked behind
+  login. Auth methods: email + password and Google sign-in, both
+  via Supabase Auth (see Architecture.md). Passwords are never
+  stored in the app or in local SQLite; the session token is held
+  in secure storage, not in plain AsyncStorage. Google sign-in uses
+  Supabase's Google provider + a Google Cloud OAuth client
+  configured by the user — no client secret is ever pasted into
+  chat, code, or docs. Until Supabase + Google are configured,
+  Login/Signup must show "not configured" and must not pretend to
+  sign anyone in, exactly like the RevenueCat stub.
 - **Reminders:** local notifications only. A reminder time change,
   disable, or habit delete cancels the previous notification.
   Permission denial is shown on the form; the habit is still saved.

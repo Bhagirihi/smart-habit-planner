@@ -79,8 +79,12 @@ without re-verifying it.
 ## 6. Safety and privacy
 
 - No secrets in chat, code, docs, or memory: no API keys, service
-  account JSON, or RevenueCat/Supabase secrets. Stubs stay
+  account JSON, Google OAuth client secrets, or RevenueCat/Supabase secrets. Stubs stay
   credential-free.
+- Auth rules: never store a password anywhere in the app; never
+  log a password, token, or reset link; session tokens go in
+  secure storage only; Google sign-in must go through Supabase
+  Auth, never through a hand-rolled OAuth flow in the app.
 - Deleting user data (Settings → Delete my data) is a two-step flow
   and must never be triggered by an agent without his explicit yes.
 - Never describe, copy, or reuse another user's data. All example
