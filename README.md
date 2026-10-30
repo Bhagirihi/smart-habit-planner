@@ -35,19 +35,19 @@ no persistence, no sync, no notifications, and no purchases.
 
 ## New in this update (2026-10-30) — widget, payment setup, free-tier days
 
-- **Dashboard widget (in-app, static):** Today now has a Free Tier
-  card and a Dashboard Widget card below the progress ring. The
-  widget card shows today's completion (e.g. 3 of 6, %) and a
-  compact habit grid (habits as rows, last 7 days as coloured
-  cells: done = habit colour, partial = accent green,
-  missed = surfaceAlt, future/unscheduled = faint; today uses the
-  session done-set). Tapping it opens the Widget Preview screen.
+- **Today layout change (2026-10-30, user feedback):** the
+  Dashboard Widget card was REMOVED from Today — Today is now
+  just greeting + compact free-tier pill + ring + week strip +
+  habit rows. The real Android home widget below is untouched.
+  The free-tier pill sits directly under "Keep going, you're
+  doing great!" and is one compact line, not a card.
 - **Widget Preview screen (`widgetPreview`, tabs hidden):** shows
   what an Android home widget would look like inside a
   home-screen-style frame — completion ring/%, habit names with
   today's check state, and the same habit grid — with a clear
   note: "Home widget preview — a real Android home widget needs
-  a development build, it does NOT work in Expo Go."
+  a development build, it does NOT work in Expo Go." Reached
+  from Settings → Home widget preview (no longer from Today).
 - **Real Android home widget: SHIPPED IN CODE (needs a
   development build to appear on a phone).** `expo-widgets`
   ~58.0.25 and `@expo/ui` ~58.0.25 are installed, the widget is
@@ -76,12 +76,13 @@ no persistence, no sync, no notifications, and no purchases.
   (charges nothing, unlocks nothing). Settings also has a
   "Payment setup" entry that reopens it. The Paywall overlay is
   unchanged (plan names only, no prices).
-- **Free-tier days on the dashboard:** Today shows a Free Tier
-  card: "Free tier • 12 days left • 5 habits, 1 routine", from
-  `FREE_TIER_DAYS_LEFT = 12` in `src/data.ts` — a clearly
-  labelled static demo value. No real trial start/end date,
-  subscription, or account is implied. The same 12-days line
-  appears on Payment Setup so the two stay consistent.
+- **Free-tier days on the dashboard:** Today shows a compact
+  free-tier pill under the greeting: "Free tier • 12 days left
+  • 5 habits, 1 routine", from `FREE_TIER_DAYS_LEFT = 12` in
+  `src/data.ts` — a clearly labelled static demo value. No real
+  trial start/end date, subscription, or account is implied.
+  The same 12-days line appears on Payment Setup so the two
+  stay consistent.
 
 ## Theme — Verdant Nightfall
 
@@ -151,12 +152,13 @@ union + Nav prop), NOT Expo Router.
     with heatmap, tap card → Habit Detail. Tabs hidden.
 16. **Login** — email + password (show/hide), Continue with
     Google button, Forgot password, Sign up links. UI preview
-    note on screen; Continue → Today for demo only.
+    note on screen; Continue → Payment Setup (skippable) for
+    demo only.
 17. **Signup** — same fields and Google button, UI preview note,
-    Continue → Today for demo only.
+    Continue → Payment Setup (skippable) for demo only.
 18. **Forgot Password** — email field, then a "Check your email
     (preview state)" state. No email is actually sent.
-19. **Widget Preview** — from the Dashboard Widget card on Today.
+19. **Widget Preview** — from Settings → Home widget preview.
     Home-screen-style frame with completion, habit check states,
     and the habit grid. Tabs hidden. Real-widget limitation is
     stated on screen.

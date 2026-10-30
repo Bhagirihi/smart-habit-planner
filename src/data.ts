@@ -49,7 +49,7 @@ export const FREE_HABIT_LIMIT = 5;
 export const FREE_ROUTINE_LIMIT = 1;
 // Last-7-days grid cell for the widget: 'done' | 'missed' | 'partial' | 'faint'.
 // Days 0-5 are deterministic static history; day 6 is today and is decided
-// by the session done-set at render time (see WidgetCard).
+// by the session done-set at render time (see HabitGrid7).
 export function last7Cell(habitId: string, dayIndex: number): 'done' | 'missed' | 'partial' | 'faint' {
   const cell = heatCell(habitId, dayIndex);
   if (cell === 3) return 'done';

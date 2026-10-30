@@ -29,6 +29,7 @@ export function Settings({ nav, ui }: ScreenProps) {
         <Text style={{ color: c.ink, fontWeight: '700', marginBottom: spacing.sm }}>Help & Legal</Text>
         <SettingRow label="Help — Show guide again" onPress={() => nav.push({ name: 'legal', page: 'Help' })} />
         <SettingRow label="Payment setup (optional, skippable)" onPress={() => nav.push({ name: 'paymentSetup' })} />
+        <SettingRow label="Home widget preview" onPress={() => nav.push({ name: 'widgetPreview' })} />
         <SettingRow label="Terms of Use" onPress={() => nav.push({ name: 'legal', page: 'Terms' })} />
         <SettingRow label="Privacy Policy" onPress={() => nav.push({ name: 'legal', page: 'Privacy' })} />
         <Btn label="Upgrade to Premium" onPress={nav.openPaywall} />

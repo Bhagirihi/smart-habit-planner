@@ -1,10 +1,9 @@
 import React from 'react';
-import { Pressable, Text, View } from 'react-native';
-import { c, radius, spacing, type } from '../theme';
+import { Text, View } from 'react-native';
+import { c, type } from '../theme';
 import { HABITS, last7Cell, last7Color } from '../data';
-import type { UiState } from '../navigation';
 
-// Compact 7-day grid shared by the Today widget card and the preview.
+// Compact 7-day grid used by the home-widget preview screen.
 // Days 0-5: static history. Day 6 (today): session done-set.
 export function HabitGrid7({ done }: { done: Set<string> }) {
   return (
@@ -27,20 +26,5 @@ export function HabitGrid7({ done }: { done: Set<string> }) {
         <Text style={{ color: c.muted, fontSize: type.caption }}>■ Future / unscheduled</Text>
       </View>
     </View>
-  );
-}
-
-export function WidgetCard({ ui, onPress }: { ui: UiState; onPress: () => void }) {
-  const doneCount = HABITS.filter((h) => ui.done.has(h.id)).length;
-  const pct = Math.round((doneCount / HABITS.length) * 100);
-  return (
-    <Pressable onPress={onPress} style={{ backgroundColor: c.surface, borderColor: c.primary, borderWidth: 1, borderRadius: radius.xl, padding: spacing.lg, marginBottom: spacing.md, shadowColor: c.primary, shadowOpacity: 0.3, shadowRadius: 12, elevation: 3 }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text style={{ color: c.ink, fontWeight: '800', fontSize: type.subtitle }}>📱 Dashboard widget</Text>
-        <Text style={{ color: c.primary, fontWeight: '700' }}>{doneCount} of {HABITS.length} · {pct}% ›</Text>
-      </View>
-      <Text style={{ color: c.muted, fontSize: type.small, marginTop: 4, marginBottom: spacing.md }}>Today's completion + habit grid. Tap to preview the home widget.</Text>
-      <HabitGrid7 done={ui.done} />
-    </Pressable>
   );
 }
